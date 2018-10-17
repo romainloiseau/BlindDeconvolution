@@ -1,0 +1,11 @@
+freeEnergy:
+    Niter: !!int 5
+    J: !!int 5
+
+paths:
+    image: "data/image.jpg"
+
+render:
+    maxwidth: !!int 300
+    
+verbose: True

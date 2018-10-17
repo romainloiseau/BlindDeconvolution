@@ -9,14 +9,17 @@ Created on Wed Oct 10 20:19:26 2018
 
 import numpy as np
 import cv2
-verbose = True
+import yaml
+
+PARAMS = yaml.load(open("params.yaml"))
+
 ## Show an image.
 # @param image The image.
 # @param maxwidth The maximum width of the image.
 # This function of course conserves proportions.
 def show(image, maxwidth = np.nan):
     if(np.isnan(maxwidth)):
-        maxwidth = 1000
+        maxwidth = PARAMS["render"]["maxwidth"]
     cv2.imshow('image',cv2.resize(image, (maxwidth, int(maxwidth * image.shape[0] / image.shape[1]))))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -25,10 +28,10 @@ def show(image, maxwidth = np.nan):
 # @param path The path to the classifier.
 # @return The image.
 def loadImage(path):
-    if(verbose):
+    if(PARAMS["verbose"]):
         print("Loading image from " + path + " ... ", end = "")
     image = cv2.imread(path) #Load image
-    if(verbose):
+    if(PARAMS["verbose"]):
         print("Done")
     return image
 

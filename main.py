@@ -5,16 +5,16 @@ Created on Wed Oct 17 12:01:57 2018
 @author: romai
 """
 
-import cv2
+import yaml
 import opencv_utils as mycv2
-from scipy import ndimage
+from freeEnergy import FreeEnergy
 
-image = mycv2.cvtGray(mycv2.loadImage("data/image.jpg"))
+PARAMS = yaml.load(open("params.yaml"))
 
-mycv2.show(image)
+image = mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"]))
 
-fv = ndimage.convolve(image, [[-1, 1]], mode='constant', cval=0.0)
-fh = ndimage.convolve(image, [[-1], [1]], mode='constant', cval=0.0)
-
-mycv2.show(fv)
-mycv2.show(fh)
+fe = FreeEnergy(image)
+#fe.renderImage()
+fe.computeDerivatives()
+#fe.renderDerivatives()
+fe.iterate()
