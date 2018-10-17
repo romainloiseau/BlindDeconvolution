@@ -1,5 +1,5 @@
 freeEnergy:
-    Niter: !!int 5
+    Niter: !!int 2
     J: !!int 5
 
 paths:

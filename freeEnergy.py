@@ -17,6 +17,11 @@ class FreeEnergy:
     def __init__(self, image):
         self.image = image
         
+    def initialize(self):
+        #Our prior is a mixture of J gaussian (MOG)
+        pi = np.ones(PARAMS["freeEnergy"]["J"]) / PARAMS["freeEnergy"]["J"]    #Weigths
+        sigma = np.ones(PARAMS["freeEnergy"]["J"])
+        
     def computeDerivatives(self):
         self.fh = Kernel([[-1, 1]]).convolve(self.image)
         self.fv = Kernel([[-1], [1]]).convolve(self.image)
