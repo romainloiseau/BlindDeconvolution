@@ -10,6 +10,7 @@ Created on Wed Oct 10 20:19:26 2018
 import numpy as np
 import cv2
 import yaml
+import matplotlib.pyplot as plt
 
 PARAMS = yaml.load(open("params.yaml"))
 

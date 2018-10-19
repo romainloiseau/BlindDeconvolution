@@ -17,10 +17,10 @@ class AxequalsbSolver:
         self.b = b
         
     def solve(self):
-        if(PARAMS["freeEnergy"]["solver"]["algorithm"] == "conjugateGradient"):
+        if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
             return self.conjugateGradient()
         else:
-            print("ERROR !! No algorithm ...     Solver : ", PARAMS["freeEnergy"]["solver"])
+            print("ERROR !! No algorithm ...     Solver : ", PARAMS["axequalsbSolver"]["algorithm"])
     
     def conjugateGradient(self):
         
@@ -37,9 +37,9 @@ class AxequalsbSolver:
         p = r.copy()
         k = 0
         
-        while(np.sqrt(np.sum(r**2)) > PARAMS["freeEnergy"]["solver"]["epsilon"]): 
+        while(np.sqrt(np.sum(r**2)) > PARAMS["axequalsbSolver"]["epsilon"]): 
             k, x, r, p = step(k, x, r, p)
-        
+        print("solved")
         return x
     
 def runTests():

@@ -1,12 +1,24 @@
 freeEnergy:
+    eta: !!float 0.01
     Niter: !!int 2
     J: !!int 5
+    M: !!int 3
     filters: 
-        - [[-1, 1]]
-        - [[-1], [1]]
-    solver:
-        algorithm: "conjugateGradient"
-        epsilon: !!float 0.00001
+        - "dh"
+        - "dv"
+
+axequalsbSolver:
+    algorithm: "conjugateGradient"
+    epsilon: !!float 0.00001
+
+deconvolution:
+    algorithm: "Sobolev"
+    lambda: !!float 0.05
+    
+filters:
+    dh: [[0, 0, 0], [-1, 0, 1], [0, 0, 0]]
+    dv: [[0, -1, 0], [0, 0, 0], [0, 1, 0]]
+    
 paths:
     image: "data/image.jpg"
 
