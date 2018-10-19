@@ -20,10 +20,10 @@ class Kernel:
     def getKernel(self):
         return self.kernel
         
-    def convolve(self, matrix, mode = "constant", cval = 0.0):
+    def convolveScipy(self, matrix, mode = "constant", cval = 0.0):
         return ndimage.convolve(matrix, self.kernel, mode = mode, cval = cval)
     
-    def convolve2(self, matrix):
+    def convolveToeplix(self, matrix):
         N0, N1 = matrix.shape
         #return np.dot(T, matrix.flatten()).reshape(N0 - self.getShape()[0] + 1, N1 - self.getShape()[1] + 1)
         return self.getToepliz(N0, N1).dot(matrix.flatten()).reshape(N0 - self.getShape()[0] + 1, N1 - self.getShape()[1] + 1)
@@ -54,10 +54,10 @@ def runTests():
     print("Matrix = ")
     print(matrix)
     T = k.getToepliz(N0, N1)
-    print("Toepliz = ")
+    print("Toepliz = ", T.shape)
     print(T)
     print("Result = ")
-    print(k.convolve2(matrix))
+    print(k.convolveToeplix(matrix))
     del k
     print()
     k = Kernel([[10, 1], [.1, .01]])
@@ -68,10 +68,10 @@ def runTests():
     print("Matrix = ")
     print(matrix)
     T = k.getToepliz(N0, N1)
-    print("Toepliz = ")
+    print("Toepliz = ", T.shape)
     print(T)
     print("Result = ")
-    print(k.convolve2(matrix))
+    print(k.convolveToeplix(matrix))
     
     print()    
     k = Kernel([[10, 1], [.1, .01]])
@@ -80,11 +80,9 @@ def runTests():
     
     ntimes = 1
     t = time.time()
-    [k.convolve2(matrix) for i in range(ntimes)]
+    [k.convolveToeplix(matrix) for i in range(ntimes)]
     print("Toepliz :", (time.time() - t) / ntimes, "secs")
     
     t = time.time()
-    [k.convolve(matrix) for i in range(ntimes)]
+    [k.convolveScipy(matrix) for i in range(ntimes)]
     print("Scipy :", (time.time() - t) / ntimes, "secs")
-    
-runTests()

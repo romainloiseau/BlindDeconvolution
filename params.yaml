@@ -1,7 +1,12 @@
 freeEnergy:
     Niter: !!int 2
     J: !!int 5
-
+    filters: 
+        - [[-1, 1]]
+        - [[-1], [1]]
+    solver:
+        algorithm: "conjugateGradient"
+        epsilon: !!float 0.00001
 paths:
     image: "data/image.jpg"
 

@@ -20,7 +20,10 @@ PARAMS = yaml.load(open("params.yaml"))
 def show(image, maxwidth = np.nan):
     if(np.isnan(maxwidth)):
         maxwidth = PARAMS["render"]["maxwidth"]
-    cv2.imshow('image',cv2.resize(image, (maxwidth, int(maxwidth * image.shape[0] / image.shape[1]))))
+    if(image.shape[0] > maxwidth):
+        cv2.imshow('image',cv2.resize(image, (maxwidth, int(maxwidth * image.shape[0] / image.shape[1]))))
+    else:
+        cv2.imshow('image', image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

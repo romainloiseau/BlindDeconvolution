@@ -7,6 +7,7 @@ Created on Wed Oct 17 19:18:47 2018
 
 import numpy as np
 from kernel import Kernel
+from qhigamma import Qhigamma
 import opencv_utils as mycv2
 import yaml
 
@@ -18,13 +19,24 @@ class FreeEnergy:
         self.image = image
         
     def initialize(self):
-        #Our prior is a mixture of J gaussian (MOG)
+        #Our prior is a mixture of J gaussian (MOG) with weights pi, mean 0, and standard deviation sigma
         pi = np.ones(PARAMS["freeEnergy"]["J"]) / PARAMS["freeEnergy"]["J"]    #Weigths
         sigma = np.ones(PARAMS["freeEnergy"]["J"])
         
+        filters = PARAMS["freeEnergy"]["filters"]
+        nfilters = len(filters)
+        
+        N1, N2 = self.image.shape[0], self.image.shape[1]
+        N = N1 * N2
+        
+        q = Qhigamma(N, nfilters, PARAMS["freeEnergy"]["J"])
+        
+        mu = np.zeros(N)
+        Cdiag = np.zeros(N)
+        
     def computeDerivatives(self):
-        self.fh = Kernel([[-1, 1]]).convolve(self.image)
-        self.fv = Kernel([[-1], [1]]).convolve(self.image)
+        self.fh = Kernel([[-1, 1]]).convolveScipy(self.image)
+        self.fv = Kernel([[-1], [1]]).convolveScipy(self.image)
         
     def iterate(self):
         for i in range(PARAMS["freeEnergy"]["Niter"]):
