@@ -13,7 +13,10 @@ axequalsbSolver:
 
 deconvolution:
     algorithm: "Sobolev"
-    lambda: !!float 0.2
+    sobolev:
+        lambda: !!float 0.000000005
+    l2:
+        lambda: !!float 0.005
     
 filters:
     dh: [[0, 0, 0], [0, -1, 1], [0, 0, 0]]
