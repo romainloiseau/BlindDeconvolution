@@ -136,3 +136,5 @@ def runTests():
     t = time.time()
     [k.convolveScipy(matrix) for i in range(ntimes)]
     print("Scipy :", (time.time() - t) / ntimes, "secs")
+    
+#runTests()

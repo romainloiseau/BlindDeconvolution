@@ -13,11 +13,12 @@ axequalsbSolver:
 
 deconvolution:
     algorithm: "Sobolev"
-    lambda: !!float 0.05
+    lambda: !!float 0.2
     
 filters:
-    dh: [[0, 0, 0], [-1, 0, 1], [0, 0, 0]]
-    dv: [[0, -1, 0], [0, 0, 0], [0, 1, 0]]
+    dh: [[0, 0, 0], [0, -1, 1], [0, 0, 0]]
+    dv: [[0, 0, 0], [0, -1, 0], [0, 1, 0]]
+    delta: [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
     
 paths:
     image: "data/image.jpg"
