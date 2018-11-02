@@ -10,5 +10,5 @@ from convolution import runTests as convolution_test
 #from kernel import runTests as kernel_test
 
 axequalsbSolver_test()
-convolution_test()
+#convolution_test()
 #kernel_test()

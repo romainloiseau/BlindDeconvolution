@@ -32,11 +32,11 @@ class Convolution:
         
     def computeKernelFT(self):
         if(not self.kernel.shape == self.inputShape):
-            if(self.kernel.shape == (3, 3)):
+            if(self.kernel.shape[0] == self.kernel.shape[1]):
                 k = np.zeros(self.inputShape)
                 
-                for i in range(3):
-                    for j in range(3):
+                for i in range(self.kernel.shape[0]):
+                    for j in range(self.kernel.shape[1]):
                         k[(i - 1) % self.inputShape[0], (j - 1) % self.inputShape[1]] = self.kernel[i, j]
                 
                 self.kernel = k
