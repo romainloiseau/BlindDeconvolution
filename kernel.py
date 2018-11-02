@@ -73,11 +73,6 @@ class Kernel:
                                 tempaki1i2 = mu[ix + i1x, iy + i1y] * matrix[ix + i2x, iy + i2y] + C[ix + i1x + M1 * (iy + i1y), ix + i2x + M1 * (iy + i2y)]
                                 Ak[i1, i2] += tempaki1i2
                                 Ak[i2, i1] += tempaki1i2
-        
-        print("Ak")
-        print(Ak)
-        print("bk")
-        print(bk)
         return Ak, bk
     
 def testsAkbk():

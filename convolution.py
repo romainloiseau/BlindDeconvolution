@@ -43,10 +43,15 @@ class Convolution:
         
         return np.real(fft2(self.kernel))
         
-    def convolve(self, image):
+    def convolve(self, image, mode = "direct"):
         if(image.shape != self.inputShape):
             raise ValueError("The convolution (shape = " + str(self.inputShape) + ") is not meant to be used with this image shape (" + str(image.shape) + ")")
-        return np.real(ifft2(fft2(image) * self.kernelFT))
+        if(mode == "direct"):
+            return np.real(ifft2(fft2(image) * self.kernelFT))
+        elif(mode == "adjoint"):
+            return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))
+        else:
+            raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
     
     def deconvolve(self, image):
         if(PARAMS["deconvolution"]["algorithm"] == "L2"):

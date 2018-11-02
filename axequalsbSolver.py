@@ -20,13 +20,15 @@ class AxequalsbSolver:
             self.A = dico["A"]
             self.b = dico["b"]
         if(self.option == "updateMu"):
-            self.kernel = dico["kernel"]
             self.image = dico["image"]
-            self.Wgamma = dico["Wgammadiag"]
-            self.factor = dico["factor"]
+            self.kernel = dico["kernel"]
+            self.gammakernel = dico["gammakernel"]
+            self.Wgamma = dico["Wgammadiag"].reshape(self.image.shape)
+            self.factorkernel = dico["factorkernel"]
             self.convolution = Convolution(self.image.shape, self.kernel)
-            self.b = self.factor * self.convolution.convolve(self.image)
-        
+            self.gammaConvolution = Convolution(self.image.shape, self.gammakernel)
+            self.b = self.factorkernel * self.convolution.convolve(self.image, mode = "adjoint").flatten()
+            
     def solve(self):
         if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
             return self.conjugateGradient()
@@ -37,25 +39,34 @@ class AxequalsbSolver:
         if(self.option == "matrix"):
             return self.A.dot(x)
         if(self.option == "updateMu"):
-            raise ValueError("C'est la merde ...")
+            
+            reshapedx = x.reshape(self.image.shape)
+            
+            withKernel = self.factorkernel * self.convolution.convolve(self.convolution.convolve(reshapedx), mode = "adjoint")
+            withGamma = self.gammaConvolution.convolve(self.Wgamma * self.gammaConvolution.convolve(reshapedx), mode = "adjoint")
+            
+            return (withKernel + withGamma).flatten()
         
     def conjugateGradient(self):
         
         def step(k, x, r, p):
-            alpha = np.sum(r**2) / np.sum(p * self.multiplyA(p))
+            sumr2 = np.sum(r**2)
+            Adotp = self.multiplyA(p)
+            alpha = sumr2 / np.sum(p * Adotp)
             x_ = x + alpha * p
-            r_ = r - alpha * self.multiplyA(p)
-            beta = np.sum(r_**2) / np.sum(r**2)
+            r_ = r - alpha * Adotp
+            beta = np.sum(r_**2) / sumr2
             p_ = r_ + beta * p
             return k+1, x_, r_, p_
         
-        x = np.zeros(len(self.b))
+        x = np.random.random(len(self.b))
         r = self.b - self.multiplyA(x)
         p = r.copy()
         k = 0
         
         while(np.sqrt(np.sum(r**2)) > PARAMS["axequalsbSolver"]["epsilon"]): 
             k, x, r, p = step(k, x, r, p)
+            
         return x
     
 def runTests():

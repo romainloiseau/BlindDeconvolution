@@ -6,9 +6,10 @@ Created on Wed Oct 17 19:18:47 2018
 """
 
 import numpy as np
-#from kernel import Kernel
+from kernel import Kernel
 from qhigamma import Qhigamma
 import matplotlib.pyplot as plt
+from convolution import Convolution
 from axequalsbSolver import AxequalsbSolver
 import opencv_utils as mycv2
 import yaml
@@ -30,12 +31,15 @@ class FreeEnergy:
         
         self.M = PARAMS["freeEnergy"]["M"]
         #self.k = Kernel(np.zeros((self.M, self.M)))
-        self.k = np.zeros((self.M, self.M))
+        self.k = np.random.random((self.M, self.M))
+        self.factorkernel = (1 / PARAMS["freeEnergy"]["eta"]**2)
         
         self.N1, self.N2 = self.image.shape[0], self.image.shape[1]
         self.N = self.N1 * self.N2
         
         self.q = Qhigamma(self.N, self.J)
+        
+        self.gammak = PARAMS["filters"]["delta"]
         
         self.mu = self.image.copy().flatten()
         self.Cdiag = np.random.random(self.N)
@@ -65,22 +69,23 @@ class FreeEnergy:
         Wgammadiag = self.q.getQ().copy()
         for i in range(len(self.sigma)):
             Wgammadiag[:, i] /= self.sigma[i]
-        Wgammadiag = Wgammadiag.sum(axis = -1)
-        print(Wgammadiag.shape)
+        self.Wgammadiag = Wgammadiag.sum(axis = -1)
+        print("Wgammadiag.shape =",Wgammadiag.shape)
         
-        #self.Ax = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose().dot(Tk) #+ Tfgamma.transpose() * np.diag(Wgammadiag) * Tfgamma
+        #self.Ax = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose().dot(Tk) + Tfgamma.transpose() * np.diag(Wgammadiag) * Tfgamma
         #self.bx = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose() * self.blurred
         
         #print(Tk)
         #print(self.bx)
         
         self.mu = AxequalsbSolver({
-                "kernel": self.k,
                 "image": self.blurred,
-                "Wgammadiag": Wgammadiag,
-                "factor" : 1 / PARAMS["freeEnergy"]["eta"]**2
+                "kernel": self.k,
+                "gammakernel": self.gammak,
+                "Wgammadiag": self.Wgammadiag,
+                "factorkernel" : self.factorkernel
                 }, option = "updateMu").solve()
-        print(self.mu)
+        print(np.sum(self.mu))
         
         if(PARAMS["verbose"]):
             print("Updated Mu ...")
@@ -88,7 +93,21 @@ class FreeEnergy:
     def updateC(self):
         #C = Ax**(-1)    Impractical for large matrices
         #C[i, i] = 1 / Ax[i, i]    Best choice to accelerate computation
-        self.Cdiag = 1 / (self.Ax.diagonal() + 10**(-6))
+        convolution = Convolution(self.image.shape, self.k)
+        gammaConvolution = Convolution(self.image.shape, self.gammak)
+            
+        for i in range(len(self.Cdiag)):
+            origin = np.zeros(len(self.Cdiag))
+            origin[i] = 1
+            reshapedorigin = origin.reshape(self.image.shape)
+            
+            withKernel = self.factorkernel * convolution.convolve(convolution.convolve(reshapedorigin), mode = "adjoint")
+            withGamma = gammaConvolution.convolve(self.Wgammadiag.reshape(self.image.shape) * gammaConvolution.convolve(reshapedorigin), mode = "adjoint")
+            
+            result = (withKernel + withGamma).flatten()
+            self.Cdiag[i] = 1 / result[i]
+        
+        #self.Cdiag = 1 / (self.Ax.diagonal() + 10**(-6))
         if(PARAMS["verbose"]):
             print("Updated C ...")
             
@@ -97,7 +116,7 @@ class FreeEnergy:
         #bk(i1) = np.sum([mu(i + i1) * y(i) for i in pixels])    (27)
         #solve minOverK(.5 * k.transpose() * Ak * k + bk.transpose() * k) s.t. k >= 0    (28)
         
-        Ak, bk = self.k.getAkbk(self.image, self.mu.reshape(self.image.shape), np.diag(self.Cdiag))
+        Ak, bk = Kernel(self.k).getAkbk(self.image, self.mu.reshape(self.image.shape), np.diag(self.Cdiag))
         #self.k = Kernel(AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M)))
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M))
         
