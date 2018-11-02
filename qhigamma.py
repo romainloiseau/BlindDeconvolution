@@ -22,5 +22,3 @@ class Qhigamma:
             tempq = pi * np.exp(- E / (2 * sigma**2)) / sigma
             tempq /= (np.sum(tempq) + 10**(-6))
             self.q[i] = tempq
-        
-        

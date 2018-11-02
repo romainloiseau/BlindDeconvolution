@@ -24,44 +24,47 @@ verbose = PARAMS["verbose"]
 
 class Convolution:
     
-    def __init__(self, image, kernel):
-        self.image = image.astype(np.float)
+    def __init__(self, inputShape, kernel):
+        #self.image = image.astype(np.float)
+        self.inputShape = inputShape
         self.kernel = np.array(kernel).astype(np.float)
         self.kernelFT = self.computeKernelFT()
         
     def computeKernelFT(self):
-        if(not self.kernel.shape == self.image.shape):
+        if(not self.kernel.shape == self.inputShape):
             if(self.kernel.shape == (3, 3)):
-                k = np.zeros(self.image.shape)
+                k = np.zeros(self.inputShape)
                 
                 for i in range(3):
                     for j in range(3):
-                        k[(i - 1) % self.image.shape[0], (j - 1) % self.image.shape[1]] = self.kernel[i, j]
+                        k[(i - 1) % self.inputShape[0], (j - 1) % self.inputShape[1]] = self.kernel[i, j]
                 
                 self.kernel = k
         
         return np.real(fft2(self.kernel))
         
-    def convolve(self):
-        return np.real(ifft2(fft2(self.image) * self.kernelFT))
+    def convolve(self, image):
+        if(image.shape != self.inputShape):
+            raise ValueError("The convolution (shape = " + str(self.inputShape) + ") is not meant to be used with this image shape (" + str(image.shape) + ")")
+        return np.real(ifft2(fft2(image) * self.kernelFT))
     
-    def deconvolve(self):
+    def deconvolve(self, image):
         if(PARAMS["deconvolution"]["algorithm"] == "L2"):
-            return self.l2()
+            return self.l2(image)
         if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):
-            return self.sobolev()
+            return self.sobolev(image)
         else:
-            print("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
+            raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
     
-    def l2(self):
-        return np.real(ifft2(fft2(self.image) * self.kernelFT / (abs(self.kernelFT)**2 + PARAMS["deconvolution"]["l2"]["lambda"])))
+    def l2(self, image):
+        return np.real(ifft2(fft2(image) * self.kernelFT / (abs(self.kernelFT)**2 + PARAMS["deconvolution"]["l2"]["lambda"])))
     
-    def sobolev(self):
-        n = self.image.shape[0]
+    def sobolev(self, image):
+        n = self.inputShape[0]
         x = np.concatenate( (np.arange(0,n/2), np.arange(-n/2,0)) );
         [Y, X] = np.meshgrid(x, x)
         S = (X**2 + Y**2) * (2/n)**2
-        return np.real(ifft2(fft2(self.image) * self.kernelFT / (abs(self.kernelFT)**2 + S*PARAMS["deconvolution"]["sobolev"]["lambda"] + 10**(-15))))
+        return np.real(ifft2(fft2(image) * self.kernelFT / (abs(self.kernelFT)**2 + S*PARAMS["deconvolution"]["sobolev"]["lambda"] + 10**(-15))))
     
 def runTests():
     print("Convolution tests")
@@ -75,14 +78,13 @@ def runTests():
 
     kernel = PARAMS["filters"]["dh"]
     
-    
     plt.subplot(234)
     plt.imshow(kernel, cmap = "gray")
     plt.title("Kernel")
     
     t1 = time.time()
-    convolution = Convolution(image, kernel)
-    convolved = convolution.convolve()
+    convolution = Convolution(image.shape, kernel)
+    convolved = convolution.convolve(image)
     t2 = time.time()
     
     plt.subplot(235)
@@ -93,7 +95,7 @@ def runTests():
     plt.imshow(convolved, cmap = "gray")
     plt.title("Convolved image")
     
-    deconvolved = Convolution(convolved, kernel).deconvolve()
+    deconvolved = convolution.deconvolve(convolved)
     
     plt.subplot(233)
     plt.imshow(deconvolved, cmap = "gray")

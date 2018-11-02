@@ -18,7 +18,7 @@ PARAMS = yaml.load(open("params.yaml"))
 class FreeEnergy:
     
     def __init__(self, image):
-        self.blurred = image.copy().flatten()
+        self.blurred = image.copy()
         self.image = image.copy()
         
     def initialize(self):
@@ -59,20 +59,27 @@ class FreeEnergy:
         #Ax = (1 / eta**2) * Tk.transpose() * Tk + np.sum([Tfgamma.transpose() * Wgamma * Tfgamma for gamma in Gamma], axis = 0)    (24)
         #bx = (1 / eta**2) * Tk.transpose() * y    (25)
         #solve Ax * mu = bx    (40)
-        Tk = self.k.getToepliz(self.N1, self.N2)
+        
+        #Tk = self.k.getToepliz(self.N1, self.N2)
         
         Wgammadiag = self.q.getQ().copy()
         for i in range(len(self.sigma)):
             Wgammadiag[:, i] /= self.sigma[i]
         Wgammadiag = Wgammadiag.sum(axis = -1)
+        print(Wgammadiag.shape)
         
-        self.Ax = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose().dot(Tk) #+ Tfgamma.transpose() * np.diag(Wgammadiag) * Tfgamma
-        self.bx = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose() * self.blurred
+        #self.Ax = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose().dot(Tk) #+ Tfgamma.transpose() * np.diag(Wgammadiag) * Tfgamma
+        #self.bx = (1 / PARAMS["freeEnergy"]["eta"]**2) * Tk.transpose() * self.blurred
         
-        print(Tk)
-        print(self.bx)
+        #print(Tk)
+        #print(self.bx)
         
-        #self.mu = AxequalsbSolver(self.Ax, self.bx).solve()
+        self.mu = AxequalsbSolver({
+                "kernel": self.k,
+                "image": self.blurred,
+                "Wgammadiag": Wgammadiag,
+                "factor" : 1 / PARAMS["freeEnergy"]["eta"]**2
+                }, option = "updateMu").solve()
         print(self.mu)
         
         if(PARAMS["verbose"]):

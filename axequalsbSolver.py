@@ -7,6 +7,7 @@ Created on Fri Oct 19 11:47:50 2018
 
 import numpy as np
 import time as time
+from convolution import Convolution
 import yaml
 
 PARAMS = yaml.load(open("params.yaml"))
@@ -18,8 +19,13 @@ class AxequalsbSolver:
         if(self.option == "matrix"):
             self.A = dico["A"]
             self.b = dico["b"]
-        if(self.option == "fourier"):
-            self
+        if(self.option == "updateMu"):
+            self.kernel = dico["kernel"]
+            self.image = dico["image"]
+            self.Wgamma = dico["Wgammadiag"]
+            self.factor = dico["factor"]
+            self.convolution = Convolution(self.image.shape, self.kernel)
+            self.b = self.factor * self.convolution.convolve(self.image)
         
     def solve(self):
         if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
@@ -30,6 +36,8 @@ class AxequalsbSolver:
     def multiplyA(self, x):
         if(self.option == "matrix"):
             return self.A.dot(x)
+        if(self.option == "updateMu"):
+            raise ValueError("C'est la merde ...")
         
     def conjugateGradient(self):
         
@@ -52,6 +60,7 @@ class AxequalsbSolver:
     
 def runTests():
     print("AxequalsbSolver tests")
+    
     A = np.array([[1, 0.1], [0.2, 1]])
     b = np.array([2, 3])
     t = time.time()
