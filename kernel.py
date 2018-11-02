@@ -96,6 +96,7 @@ def testsAkbk():
     
     
 def runTests():
+    print("Kernel tests")
     k = Kernel([[1, .1]])
     print("Kernel = ")
     print(k.getKernel())
@@ -136,5 +137,3 @@ def runTests():
     t = time.time()
     [k.convolveScipy(matrix) for i in range(ntimes)]
     print("Scipy :", (time.time() - t) / ntimes, "secs")
-    
-#runTests()

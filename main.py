@@ -17,8 +17,10 @@ PARAMS = yaml.load(open("params.yaml"))
 
 image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (50, 50))
 plt.imshow(image, cmap = "gray")
+plt.title("Original image")
 plt.show()
 image = Kernel(np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]) / 9).convolveScipy(image) #Blurring image
+plt.title("Blurred image")
 plt.imshow(image, cmap = "gray")
 plt.show()
 

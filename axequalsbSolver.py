@@ -6,15 +6,20 @@ Created on Fri Oct 19 11:47:50 2018
 """
 
 import numpy as np
+import time as time
 import yaml
 
 PARAMS = yaml.load(open("params.yaml"))
 
 class AxequalsbSolver:
     
-    def __init__(self, A, b):
-        self.A = A
-        self.b = b
+    def __init__(self, dico, option = "matrix"):
+        self.option = option
+        if(self.option == "matrix"):
+            self.A = dico["A"]
+            self.b = dico["b"]
+        if(self.option == "fourier"):
+            self
         
     def solve(self):
         if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
@@ -22,29 +27,40 @@ class AxequalsbSolver:
         else:
             print("ERROR !! No algorithm ...     Solver : ", PARAMS["axequalsbSolver"]["algorithm"])
     
+    def multiplyA(self, x):
+        if(self.option == "matrix"):
+            return self.A.dot(x)
+        
     def conjugateGradient(self):
         
         def step(k, x, r, p):
-            alpha = np.sum(r**2) / np.sum(p * self.A.dot(p))
+            alpha = np.sum(r**2) / np.sum(p * self.multiplyA(p))
             x_ = x + alpha * p
-            r_ = r - alpha * self.A.dot(p)
+            r_ = r - alpha * self.multiplyA(p)
             beta = np.sum(r_**2) / np.sum(r**2)
             p_ = r_ + beta * p
             return k+1, x_, r_, p_
         
         x = np.zeros(len(self.b))
-        r = self.b - self.A.dot(x)
+        r = self.b - self.multiplyA(x)
         p = r.copy()
         k = 0
         
         while(np.sqrt(np.sum(r**2)) > PARAMS["axequalsbSolver"]["epsilon"]): 
             k, x, r, p = step(k, x, r, p)
-        print("solved")
         return x
     
 def runTests():
+    print("AxequalsbSolver tests")
     A = np.array([[1, 0.1], [0.2, 1]])
     b = np.array([2, 3])
+    t = time.time()
+    x = AxequalsbSolver({"A": A, "b": b}).solve()
     
-    x = AxequalsbSolver(A, b).solve()
-    print(x, A.dot(x) - b)
+    print("A")
+    print(A)
+    print("b", b)
+    print("x", x)
+    print("Error", ((A.dot(x) - b)**2).sum()**0.5)
+    print("Solved in", time.time() - t, "secs")
+    print()

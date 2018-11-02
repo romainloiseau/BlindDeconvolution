@@ -6,7 +6,7 @@ Created on Wed Oct 17 19:18:47 2018
 """
 
 import numpy as np
-from kernel import Kernel
+#from kernel import Kernel
 from qhigamma import Qhigamma
 import matplotlib.pyplot as plt
 from axequalsbSolver import AxequalsbSolver
@@ -29,7 +29,8 @@ class FreeEnergy:
         self.sigma = np.random.random(size = self.J)
         
         self.M = PARAMS["freeEnergy"]["M"]
-        self.k = Kernel(np.zeros((self.M, self.M)))
+        #self.k = Kernel(np.zeros((self.M, self.M)))
+        self.k = np.zeros((self.M, self.M))
         
         self.N1, self.N2 = self.image.shape[0], self.image.shape[1]
         self.N = self.N1 * self.N2
@@ -71,7 +72,7 @@ class FreeEnergy:
         print(Tk)
         print(self.bx)
         
-        self.mu = AxequalsbSolver(self.Ax, self.bx).solve()
+        #self.mu = AxequalsbSolver(self.Ax, self.bx).solve()
         print(self.mu)
         
         if(PARAMS["verbose"]):
@@ -90,11 +91,13 @@ class FreeEnergy:
         #solve minOverK(.5 * k.transpose() * Ak * k + bk.transpose() * k) s.t. k >= 0    (28)
         
         Ak, bk = self.k.getAkbk(self.image, self.mu.reshape(self.image.shape), np.diag(self.Cdiag))
-        self.k = Kernel(AxequalsbSolver(Ak, bk).solve().reshape((self.M, self.M)))
+        #self.k = Kernel(AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M)))
+        self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M))
         
         if(PARAMS["verbose"]):
             print("Updated k ...")
         
     def renderImage(self):
         plt.imshow(self.image, cmap = "gray")
+        plt.title("Algo image")
         plt.show()
