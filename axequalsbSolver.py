@@ -60,6 +60,7 @@ class AxequalsbSolver:
         
     def conjugateGradient(self):
         
+        
         def step(k, x, r, p):
             sumr2 = np.sum(r**2)
             Adotp = self.multiplyA(p)
@@ -68,21 +69,28 @@ class AxequalsbSolver:
             x_ = x + alpha * p
             r_ = r - alpha * Adotp
             beta = np.sum(r_**2) / sumr2
+            #if(beta > 1):print("WARNING, beta > 1 for conjuguate gradient method", sumr2, np.sum(r_**2))
             p_ = r_ + beta * p
             return k+1, x_, r_, p_
         
-        x = np.ones(len(self.b))
+        if(self.option == "matrix"):
+            x = np.random.random(len(self.b)) * np.sum(self.b) / np.sum(self.A)
+        elif(self.option == "updatex"):
+            x = self.image.copy().flatten()
+            
         r = self.b - self.multiplyA(x)
+        if(PARAMS["verbose"]):print("AxequalsbSolver initial error :", np.sum(r**2))
         p = r.copy()
         k = 0
         
-        while(np.sqrt(np.sum(np.real(r * np.conjugate(r)))) > PARAMS["axequalsbSolver"]["epsilon"]):
-            if(k <= self.maxite):
+        while(np.sum(r**2) > PARAMS["axequalsbSolver"]["epsilon"]):
+            
+            if(k < self.maxite):
                 k, x, r, p = step(k, x, r, p)
             else:
                 break
-            
-        return np.real(x)
+        if(PARAMS["verbose"]):print("AxequalsbSolver final error :  ", np.sum(r**2))   
+        return x
     
 def runTests():
     print("AxequalsbSolver tests")
@@ -119,9 +127,8 @@ def runTests():
     mu3 = AxequalsbSolver({
             "image": I,
             "kernel": k,
-            "gammakernel": np.zeros(k.shape),
-            "Wgamma": np.zeros(I.shape),
-            "factorkernel" : 1
-            }, option = "updateMu").solve()
+            "w": np.zeros(I.shape),
+            "weightpen" : 0
+            }, option = "updatex").solve()
     
     print("ERROR", np.sqrt(np.sum((mu1 - mu3)**2)), np.mean(np.abs(mu1 - mu3)))

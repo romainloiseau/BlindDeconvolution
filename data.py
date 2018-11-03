@@ -65,7 +65,6 @@ class Data:
         self.M = 2 * int(PARAMS["freeEnergy"]["M"]/2) + 1
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
-        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
         self.k /= self.k.sum()
         
         print()
@@ -93,50 +92,55 @@ class Data:
             print("Updated x ...")
             if(self.checkx):
                 if(self.derivativeSpace):
-                    plt.figure()
+                    plt.figure(figsize = (9, 6))
                     for i in range(self.nfilters):
                         plt.subplot(201 + 10 * self.nfilters + 2 * i)
                         plt.imshow(self.dx[i], cmap = "gray")
                         plt.title("error " + str(np.sum((self.dx[i] - self.truedx[i])**2)**0.5))
                         plt.subplot(202 + 10 * self.nfilters + 2 * i)
-                        plt.hist(self.dx[i].flatten())
+                        plt.hist(self.dx[i].flatten(), bins = 40)
                     plt.show()
                 else:
+                    plt.figure(figsize = (9, 3))
+                    plt.subplot(121)
                     plt.imshow(self.x, cmap = "gray")
                     plt.title("error " + str(np.sum((self.x - self.truex)**2)**0.5))
+                    plt.subplot(122)
+                    plt.hist(self.x.flatten(), bins = 40)
                     plt.show()
                 
     def update_specx(self, x, c):
+        
         E = x.flatten()**2 + c
         
-        q = np.zeros((self.N, self.J))
-        for i in range(self.N):
-            logq_i = - 0.5 * E[i] / self.sigma**2 + np.ones(self.J) * (np.log(self.pi) - np.log(self.sigma))
-            q_i = np.exp(logq_i - np.max(logq_i))
-            q_i /= q_i.sum()
-            """
-            if(i < 3):
-                print(E[i], x.flatten()[i]**2, c[i])
-                print(- 0.5 * E[i] / self.sigma**2)
-                print(np.log(self.pi))
-                print(- np.log(self.sigma))
-                print(logq_i)
-                print(q_i)
-                print()
-            """
-            q[i] = q_i.copy()
-        w = ((q / self.sigma**2).sum(axis = -1)).reshape(self.N1, self.N2)
+        logq = np.zeros((self.J, self.N))
+        
+        for i in range(self.J):
+            sigma_i = self.sigma[i]
+            pi_i = self.pi[i]
+            
+            logq_i = - 0.5 * E / sigma_i**2 + np.ones(self.N) * (np.log(pi_i) - np.log(sigma_i))
+            logq[i] = logq_i.copy()
+            
+        q = np.exp(logq - np.max(logq, axis = 0))
+        q /= np.sum(q, axis = 0)
+        
+        w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1, self.N2)
         
         x = AxequalsbSolver({
-                "image": x,
+                "image": np.lib.pad(x, ((1, 1), (1, 1)), 'constant', constant_values=(0)),
                 "kernel": self.k,
                 "weightpen": self.signoise**2,
-                "w": w
+                "w": np.lib.pad(w, ((1, 1), (1, 1)), 'constant', constant_values=(0))
                 }, option = "updatex").solve()
+    
         
-        da1 = (1 / self.signoise**2) * Convolution((self.N1, self.N2), self.k ** 2).convolve(np.ones((self.N1, self.N2)));
-        xcov = 1. / (da1 + w);
-        return x.reshape(self.N1, self.N2), xcov.flatten()
+        x = x.reshape(self.N1 + 2, self.N2 + 2)[1:-1, 1:-1]
+        
+        da1 = (1 / self.signoise**2) * Convolution((self.N1, self.N2), self.k ** 2).convolve(np.ones((self.N1, self.N2)))
+        xcov = 1. / (da1 + w)
+            
+        return x, xcov.flatten()
             
     def update_k(self):
         if(self.derivativeSpace):
@@ -148,7 +152,7 @@ class Data:
             y = self.y
             c = self.C
         
-        Ak, bk = Kernel(self.k).getAkbk(y, x, np.diag(c))
+        Ak, bk = Kernel(self.k).getAkbk(y, x, c)
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M))
         self.k /= np.sum(np.abs(self.k))
         

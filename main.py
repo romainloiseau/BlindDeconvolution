@@ -16,7 +16,7 @@ from convolution import Convolution
 
 PARAMS = yaml.load(open("params.yaml"))
 
-image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (50, 50))
+image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (300, 300))
 plt.figure(figsize = (8, 8))
 plt.subplot(221)
 plt.imshow(image, cmap = "gray")
@@ -39,5 +39,5 @@ plt.title("Blurred derivative, " + [k for k in PARAMS["derivativefilters"]][0])
 plt.imshow(derivatives[0], cmap = "gray")
 plt.show()
 
-data = Data(blurredimage, derivativeSpace = True, truek = blurringkernel, truex = image)
+data = Data(blurredimage, derivativeSpace = False, truek = blurringkernel, truex = image)
 data.deconv()
