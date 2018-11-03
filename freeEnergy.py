@@ -19,33 +19,44 @@ PARAMS = yaml.load(open("params.yaml"))
 
 class FreeEnergy:
     
-    def __init__(self, image, blurringkernel):
-        self.blurred = image.copy()
-        self.image = image.copy()
+    def __init__(self, image, blurringkernel, derivatives = [], filters = []):
+        self.y = image.copy()
+        self.x = image.copy()
         self.blurringkernel = blurringkernel
+        
+        self.derivativeSpace = (len(derivatives) != 0)
+        
+        if(self.derivativeSpace):
+            self.dy = derivatives.copy()
+            self.dx = derivatives.copy()
+            self.filters = filters
         
     def initialize(self):
         #Our prior is a mixture of J gaussian (MOG) with weights pi, mean 0, and standard deviation sigma
-        self.J = PARAMS["freeEnergy"]["J"]
-        self.pi = np.random.random(size = self.J)    #Weigths
-        self.pi /= np.sum(self.pi)
-        self.sigma = 2 * self.image.shape[0] * np.random.random(size = self.J)
+        self.pi = np.array(PARAMS["freeEnergy"]["pis"])    #Weigths
+        self.pi /= self.pi.sum()
+        self.sigma = np.array(PARAMS["freeEnergy"]["ivars"])
+        self.J = len(self.sigma)
         
         self.deltak = PARAMS["filters"]["delta"]
         
-        self.M = PARAMS["freeEnergy"]["M"]
-        self.k = 10 + np.random.random((self.M, self.M))
-        self.k /= np.sum(self.k)
+        self.M = 2 * int(PARAMS["freeEnergy"]["M"]/2) + 1
+        self.k = np.zeros((self.M, self.M))
+        self.k[int(self.M / 2.), int(self.M / 2.)] = 1
+        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
+        self.k /= self.k.sum()
         
         self.factorkernel = (1 / PARAMS["freeEnergy"]["eta"]**2)
         
-        self.N1, self.N2 = self.image.shape[0], self.image.shape[1]
+        self.N1, self.N2 = self.x.shape[0], self.x.shape[1]
         self.N = self.N1 * self.N2
         
         self.q = Qhigamma(self.N, self.J)
         
-        self.mu = self.image.copy().flatten()
+        self.mu = self.x.copy().flatten()
         self.Cdiag = np.random.random(self.N)
+        
+        print("Expected number of pyramids", max(np.floor(np.log(5/self.M)/np.log(0.5**0.5)), 0))
         
     def iterate(self):
         for i in range(PARAMS["freeEnergy"]["Niter"]):
@@ -77,7 +88,7 @@ class FreeEnergy:
         for i in range(len(self.sigma)):
             Wgammadiag[:, i] /= self.sigma[i]**2
         
-        self.Wgamma = Wgammadiag.reshape((self.image.shape[0], self.image.shape[1], len(self.sigma))).transpose(2, 0, 1).sum(axis = 0)
+        self.Wgamma = Wgammadiag.reshape((self.N1, self.N2, len(self.sigma))).transpose(2, 0, 1).sum(axis = 0)
         
         
         #self.Wgammadiag = Wgammadiag.sum(axis = -1)
@@ -90,7 +101,7 @@ class FreeEnergy:
         
         
         self.mu = AxequalsbSolver({
-                "image": self.blurred,
+                "image": self.y,
                 "kernel": self.k,
                 "gammakernel": self.deltak,
                 "gammasigma": self.sigma,
@@ -119,7 +130,7 @@ class FreeEnergy:
             plt.hist(self.mu)
             plt.title("mu")
             plt.subplot(122)
-            plt.imshow(self.mu.reshape(self.image.shape), cmap = "gray")
+            plt.imshow(self.mu.reshape((self.N1, self.N2)), cmap = "gray")
             plt.show()
             print("Updated Mu ...")
 
@@ -128,13 +139,13 @@ class FreeEnergy:
         #C[i, i] = 1 / Ax[i, i]    Best choice to accelerate computation
         
         
-        convolution = Convolution(self.image.shape, self.k)
-        gammaConvolution = Convolution(self.image.shape, self.deltak)
+        convolution = Convolution((self.N1, self.N2), self.k)
+        gammaConvolution = Convolution((self.N1, self.N2), self.deltak)
         
         for i in range(len(self.Cdiag)):
             origin = np.zeros(len(self.Cdiag))
             origin[i] = 1
-            reshapedorigin = origin.reshape(self.image.shape)
+            reshapedorigin = origin.reshape((self.N1, self.N2))
             
             withKernel = self.factorkernel * convolution.convolve(convolution.convolve(reshapedorigin), mode = "adjoint")
             gammaconvolvedreshapedorigin = gammaConvolution.convolve(reshapedorigin)
@@ -162,7 +173,7 @@ class FreeEnergy:
         #bk(i1) = np.sum([mu(i + i1) * y(i) for i in pixels])    (27)
         #solve minOverK(.5 * k.transpose() * Ak * k + bk.transpose() * k) s.t. k >= 0    (28)
         
-        Ak, bk = Kernel(self.k).getAkbk(self.image, self.mu.reshape(self.image.shape), np.diag(self.Cdiag))
+        Ak, bk = Kernel(self.k).getAkbk(self.x, self.mu.reshape((self.N1, self.N2)), np.diag(self.Cdiag))
         #self.k = Kernel(AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M)))
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M))
         self.k /= np.sum(np.abs(self.k))

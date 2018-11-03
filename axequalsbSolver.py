@@ -18,51 +18,45 @@ class AxequalsbSolver:
     
     def __init__(self, dico, option = "matrix"):
         self.option = option
+        
         if(self.option == "matrix"):
+            self.maxite = 10**9
             self.A = dico["A"]
             self.b = dico["b"]
-        if(self.option == "updateMu"):
+        elif(self.option == "updatex"):
+            self.maxite = PARAMS["axequalsbSolver"]["maxite"]
             self.image = dico["image"]
             self.kernel = dico["kernel"]
-            self.gammakernel = dico["gammakernel"]
-            #self.gammasigma = dico["gammasigma"]
-            #self.gammapi = dico["gammapi"]
-            self.Wgamma = dico["Wgamma"]
+            self.weightpen = dico["weightpen"]
+            self.w = dico["w"]
             
-            self.factorkernel = dico["factorkernel"]
             self.convolution = Convolution(self.image.shape, self.kernel)
-            self.gammaConvolution = Convolution(self.image.shape, self.gammakernel)
+            self.b = self.convolution.convolve(self.image, mode = "adjoint").flatten()
+        
+        else:    
+            raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
             
-            #withKernel = self.factorkernel * np.conjugate(self.convolution.kernelFT).transpose() * self.convolution.kernelFT
-            #withGamma = np.conjugate(self.gammaConvolution.kernelFT).transpose() * fft2(self.Wgamma) * self.gammaConvolution.kernelFT
-            #self.fourier = withKernel + withGamma
-            
-            #self.b = self.factorkernel * self.convolution.convolve(self.image, mode = "adjoint").flatten()
-            self.b = np.real(ifft2(self.factorkernel * np.conjugate(self.convolution.kernelFT).transpose() * fft2(self.image)).flatten())
             
     def solve(self):
         if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
             return self.conjugateGradient()
         else:
-            raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["axequalsbSolver"]["algorithm"])
+            raise ValueError("No valid algorithm for AxequalsbSolver ... current = " + str(PARAMS["axequalsbSolver"]["algorithm"]) + ". Possible choices: {conjugateGradient}")
     
     def multiplyA(self, x):
         if(self.option == "matrix"):
             return self.A.dot(x)
         
-        elif(self.option == "updateMu"):
+        elif(self.option == "updatex"):
             
-            #reshapedxFT = fft2(x.reshape(self.image.shape))
             reshapedx = x.reshape(self.image.shape)
             
-            withKernel = self.factorkernel * self.convolution.convolve(self.convolution.convolve(reshapedx), mode = "adjoint")
-            withGamma = self.gammaConvolution.convolve(self.Wgamma * self.gammaConvolution.convolve(reshapedx), mode = "adjoint")
-            
+            withKernel = self.convolution.convolve(self.convolution.convolve(reshapedx), mode = "adjoint")
+            withGamma = self.weightpen * self.w * reshapedx
             return (withKernel + withGamma).flatten()
-            #return np.real(ifft2(self.fourier * reshapedxFT).flatten())
         
         else:
-            raise ValueError("No valid option for multiplyA ... current = " + str(self.option))
+            raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
         
     def conjugateGradient(self):
         
@@ -77,16 +71,17 @@ class AxequalsbSolver:
             p_ = r_ + beta * p
             return k+1, x_, r_, p_
         
-        x = np.random.random(len(self.b))
+        x = np.ones(len(self.b))
         r = self.b - self.multiplyA(x)
         p = r.copy()
         k = 0
         
         while(np.sqrt(np.sum(np.real(r * np.conjugate(r)))) > PARAMS["axequalsbSolver"]["epsilon"]):
-            k, x, r, p = step(k, x, r, p)
+            if(k <= self.maxite):
+                k, x, r, p = step(k, x, r, p)
+            else:
+                break
             
-        print("nstep", k)
-        
         return np.real(x)
     
 def runTests():

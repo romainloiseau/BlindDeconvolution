@@ -11,11 +11,12 @@ import opencv_utils as mycv2
 import cv2
 import matplotlib.pyplot as plt
 from freeEnergy import FreeEnergy
+from data import Data
 from convolution import Convolution
 
 PARAMS = yaml.load(open("params.yaml"))
 
-image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (100, 100))
+image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (50, 50))
 plt.figure(figsize = (8, 8))
 plt.subplot(221)
 plt.imshow(image, cmap = "gray")
@@ -27,24 +28,16 @@ plt.subplot(222)
 plt.title("Blurred image")
 plt.imshow(blurredimage, cmap = "gray")
 
-"""
-fe = FreeEnergy(image, blurringkernel)
-fe.renderImage()
-fe.initialize()
-fe.iterate()
-"""
-
 plt.subplot(223)
-plt.imshow(Convolution(image.shape, PARAMS["filters"][[k for k in PARAMS["filters"]][0]]).convolve(image), cmap = "gray")
-plt.title("Original derivative")
+plt.imshow(Convolution(image.shape, PARAMS["derivativefilters"][[k for k in PARAMS["derivativefilters"]][0]]).convolve(image), cmap = "gray")
+plt.title("Original derivative, " + [k for k in PARAMS["derivativefilters"]][0])
 
-derivatives = [Convolution(blurredimage.shape, PARAMS["filters"][k]).convolve(blurredimage) for k in PARAMS["filters"]]        
+derivatives = [Convolution(blurredimage.shape, PARAMS["derivativefilters"][k]).convolve(blurredimage) for k in PARAMS["derivativefilters"]]        
 
 plt.subplot(224)
-plt.title("Blurred derivative")
+plt.title("Blurred derivative, " + [k for k in PARAMS["derivativefilters"]][0])
 plt.imshow(derivatives[0], cmap = "gray")
 plt.show()
 
-fe = FreeEnergy(derivatives[0], blurringkernel)
-fe.initialize()
-fe.iterate()
+data = Data(blurredimage, derivativeSpace = True, truek = blurringkernel, truex = image)
+data.deconv()
