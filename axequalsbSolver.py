@@ -18,21 +18,20 @@ class AxequalsbSolver:
     
     def __init__(self, dico, option = "matrix"):
         self.option = option
-        
+        self.maxite = 10**9
         if(self.option == "matrix"):
-            self.maxite = 10**9
             self.A = dico["A"]
             self.b = dico["b"]
+            
         elif(self.option == "updatex"):
-            self.maxite = PARAMS["axequalsbSolver"]["maxite"]
             self.image = dico["image"]
             self.kernel = dico["kernel"]
             self.weightpen = dico["weightpen"]
             self.w = dico["w"]
             
-            self.convolution = Convolution(self.image.shape, self.kernel)
-            self.b = self.convolution.convolve(self.image, mode = "adjoint").flatten()
-        
+            self.convo = Convolution(self.image.shape, self.kernel)
+            self.b = self.convo.convolve(self.image, mode = "adjoint").flatten()
+            
         else:    
             raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
             
@@ -51,7 +50,8 @@ class AxequalsbSolver:
             
             reshapedx = x.reshape(self.image.shape)
             
-            withKernel = self.convolution.convolve(self.convolution.convolve(reshapedx), mode = "adjoint")
+            #withKernel = self.convo.convolve(self.convolution.convolve(reshapedx), mode = "adjoint")
+            withKernel = np.real(ifft2(fft2(reshapedx) * self.convo.kernelFT * np.conjugate(self.convo.kernelFT).transpose()))
             withGamma = self.weightpen * self.w * reshapedx
             return (withKernel + withGamma).flatten()
         
@@ -74,7 +74,7 @@ class AxequalsbSolver:
             return k+1, x_, r_, p_
         
         if(self.option == "matrix"):
-            x = np.random.random(len(self.b)) * np.sum(self.b) / np.sum(self.A)
+            x = np.random.random(len(self.b))
         elif(self.option == "updatex"):
             x = self.image.copy().flatten()
             
@@ -84,7 +84,6 @@ class AxequalsbSolver:
         k = 0
         
         while(np.sum(r**2) > PARAMS["axequalsbSolver"]["epsilon"]):
-            
             if(k < self.maxite):
                 k, x, r, p = step(k, x, r, p)
             else:
@@ -108,27 +107,49 @@ def runTests():
     print("Solved in", time.time() - t, "secs")
     print()
     
+    A = np.random.random((100, 100))
+    A = A.transpose().dot(A)
+    b = np.random.random((100))
+    t = time.time()
+    x = AxequalsbSolver({"A": A, "b": b}).solve()
+    
+    print("Error", ((A.dot(x) - b)**2).sum()**0.5)
+    print("||x||", (x**2).sum()**0.5)
+    print("Solved in", time.time() - t, "secs")
+    print()
+    
+    PARAMS["verbose"] = False
+    
     k = np.random.random((3, 3))
     I = np.random.random((100, 100))
     
-    Tk = Kernel(k).getToepliz(I.shape[0], I.shape[1])
-    
-    Ak = Tk.transpose().dot(Tk)
-    bk = Tk.transpose().dot(I.flatten())
-    mu1 = AxequalsbSolver({"A": Ak, "b": bk}).solve()
-    
     convo = Convolution(I.shape, k)
+    Ik = convo.convolve(I)
     
-    bI = np.real(ifft2(fft2(I) * np.conjugate(convo.kernelFT).transpose()))
-    mu2 = np.real(ifft2(fft2(bI) * convo.kernelFT * np.conjugate(convo.kernelFT).transpose()/ (np.abs(convo.kernelFT * np.conjugate(convo.kernelFT).transpose())**2))).flatten()
+    print("INITIAL ERROR :", np.sqrt(np.sum((I - Ik)**2)))
+    print()
     
-    print("ERROR", np.sqrt(np.sum((mu1 - mu2)**2)), np.mean(np.abs(mu1 - mu2)))
+    bI = np.real(ifft2(fft2(Ik) * np.conjugate(convo.kernelFT).transpose()))
+    mu1 = np.real(ifft2(fft2(bI) * convo.kernelFT * np.conjugate(convo.kernelFT).transpose()/ (np.abs(convo.kernelFT * np.conjugate(convo.kernelFT).transpose())**2))).flatten()
     
-    mu3 = AxequalsbSolver({
-            "image": I,
+    print("ERROR - fourier                                     ", np.sqrt(np.sum((I.flatten() - mu1)**2)))
+     
+    
+    Tk = Kernel(k).getToepliz(Ik.shape[0], Ik.shape[1])
+    Ak = Tk.transpose().dot(Tk)
+    bk = Tk.transpose().dot(Ik.flatten())
+    mu2 = AxequalsbSolver({"A": Ak, "b": bk}).solve()
+    print("ERROR - conjuguate gradient toepliz                 ", np.sqrt(np.sum((I.flatten() - mu2)**2)))
+    
+    
+    mu3solver = AxequalsbSolver({
+            "image": Ik,
             "kernel": k,
-            "w": np.zeros(I.shape),
+            "w": np.zeros(Ik.shape),
             "weightpen" : 0
-            }, option = "updatex").solve()
+            }, option = "updatex")
     
-    print("ERROR", np.sqrt(np.sum((mu1 - mu3)**2)), np.mean(np.abs(mu1 - mu3)))
+    mu3 = mu3solver.solve()
+    
+    print("ERROR - conjuguate gradient fourier                 ", np.sqrt(np.sum((I.flatten() - mu3)**2)))
+    print("np.sqrt(np.sum((bI.flatten() - mu3solver.b)**2))    ", np.sqrt(np.sum((bI.flatten() - mu3solver.b)**2)))

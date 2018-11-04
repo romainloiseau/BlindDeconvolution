@@ -23,7 +23,11 @@ class Data:
         
         self.checkx = not np.isnan(truex.all())
         if(self.checkx):
-            self.truex = truex / 256.
+            if(y.shape != truex.shape):
+                print("WARNING, truex shape different from initial image y shape, setting self.checkx to False")
+                self.checkx = False
+            else:
+                self.truex = truex / 256.
             
         self.checkk = not np.isnan(truek.all())
         if(self.checkk):
@@ -43,9 +47,22 @@ class Data:
                 self.truedx = [conv.convolve(self.truex) for conv in convs]
     
     def initialize(self):
+        #Initialize kernel
+        self.M = 2 * int(PARAMS["freeEnergy"]["M"]/2) + 1
+        if(self.checkk and self.M != self.truek.shape[0]):
+            print("WARNING, self.truek shape different from researched kernel shape self.M, setting self.checkk to False")
+            self.checkk = False
+            
+        self.k = np.zeros((self.M, self.M))
+        self.k[int(self.M / 2.), int(self.M / 2.)] = 1
+        self.k /= self.k.sum()
+        
         #Initialize shapes
         self.N1, self.N2 = self.x.shape[0], self.x.shape[1]
-        self.N = self.N1 * self.N2
+        self.dN1, self.dN2 = int(self.M / 2.), int(self.M / 2.)
+        self.N1e, self.N2e = self.N1 + 2 * self.dN1, self.N2 + 2 * self.dN2
+        self.N, self.Ne = self.N1 * self.N2, self.N1e * self.N2e
+        
         
         #Noise
         self.signoise = PARAMS["freeEnergy"]["eta"]
@@ -57,22 +74,21 @@ class Data:
         self.J = len(self.sigma)
         
         #Weights
-        self.C = np.sum(self.sigma**2) * np.ones(self.N)
+        #self.C = np.sum(1 / self.sigma**2) * np.ones(self.Ne)
+        self.C = np.zeros(self.Ne)
         if(self.derivativeSpace):
             self.C = [self.C.copy() for i in range(self.nfilters)]
 
-        #Initialize kernel
-        self.M = 2 * int(PARAMS["freeEnergy"]["M"]/2) + 1
-        self.k = np.zeros((self.M, self.M))
-        self.k[int(self.M / 2.), int(self.M / 2.)] = 1
-        self.k /= self.k.sum()
-        
         print()
         print("Expected number of pyramids", max(np.floor(np.log(5/self.M)/np.log(0.5**0.5)), 0))
         print()
             
     def deconv(self):
         self.initialize()
+        if(PARAMS["verbose"]):
+            print("Initial variables")
+            self.print_x()
+            self.print_k()
         for i in range(PARAMS["freeEnergy"]["Niter"]):
             if(PARAMS["verbose"]):print()
             self.computeIteration()
@@ -86,61 +102,86 @@ class Data:
             for i in range(self.nfilters):
                 self.dx[i], self.C[i] = self.update_specx(self.dx[i], self.C[i])
         else:
-            self.x, self.c = self.update_specx(self.x, self.C)
-            
+            self.x, self.C = self.update_specx(self.x, self.C)
+        
         if(PARAMS["verbose"]):
-            print("Updated x ...")
-            if(self.checkx):
-                if(self.derivativeSpace):
-                    plt.figure(figsize = (9, 6))
-                    for i in range(self.nfilters):
-                        plt.subplot(201 + 10 * self.nfilters + 2 * i)
-                        plt.imshow(self.dx[i], cmap = "gray")
-                        plt.title("error " + str(np.sum((self.dx[i] - self.truedx[i])**2)**0.5))
-                        plt.subplot(202 + 10 * self.nfilters + 2 * i)
-                        plt.hist(self.dx[i].flatten(), bins = 40)
-                    plt.show()
+            print("Updated x ...")   
+            self.print_x()
+          
+    def print_x(self):
+        if(self.derivativeSpace):
+            plt.figure(figsize = (15, 3 * self.nfilters))
+            for i in range(self.nfilters):
+                plt.subplot(100 * self.nfilters + 31 + 3 * i)
+                plt.imshow(self.dx[i], cmap = "gray")
+                if(self.checkx):
+                    plt.title("x, error " + str(np.sum((self.dx[i] - self.truedx[i])**2)**0.5))
                 else:
-                    plt.figure(figsize = (9, 3))
-                    plt.subplot(121)
-                    plt.imshow(self.x, cmap = "gray")
-                    plt.title("error " + str(np.sum((self.x - self.truex)**2)**0.5))
-                    plt.subplot(122)
-                    plt.hist(self.x.flatten(), bins = 40)
-                    plt.show()
+                    plt.title("x")
+                plt.subplot(100 * self.nfilters + 32 + 3 * i)
+                plt.hist(self.dx[i].flatten(), bins = 40)
+                plt.title("self.dx[i]")
+                plt.subplot(100 * self.nfilters + 33 + 3 * i)
+                plt.hist(self.C[i], bins = 40)
+                plt.title("self.C[i]")
+            plt.show()
+        else:
+            plt.figure(figsize = (15, 3))
+            plt.subplot(131)
+            plt.imshow(self.x, cmap = "gray")
+            if(self.checkx):
+                plt.title("x, error " + str(np.sum((self.x - self.truex)**2)**0.5))
+            else:
+                plt.title("x")
+            plt.subplot(132)
+            plt.hist(self.x.flatten(), bins = 40)
+            plt.title("self.x")
+            plt.subplot(133)
+            plt.hist(self.C, bins = 40)
+            plt.title("self.C")
+            plt.show()
                 
     def update_specx(self, x, c):
         
+        x = np.lib.pad(x, ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
+        
         E = x.flatten()**2 + c
         
-        logq = np.zeros((self.J, self.N))
+        print(np.mean(E), np.mean(x.flatten()**2), np.mean(c))
+        
+        logq = np.zeros((self.J, self.Ne))
         
         for i in range(self.J):
             sigma_i = self.sigma[i]
             pi_i = self.pi[i]
-            
-            logq_i = - 0.5 * E / sigma_i**2 + np.ones(self.N) * (np.log(pi_i) - np.log(sigma_i))
+            logq_i = - 0.5 * E / sigma_i**2 + np.ones(self.Ne) * (np.log(pi_i) - np.log(sigma_i))
             logq[i] = logq_i.copy()
-            
+    
         q = np.exp(logq - np.max(logq, axis = 0))
         q /= np.sum(q, axis = 0)
         
-        w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1, self.N2)
+        w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1e, self.N2e)
         
         x = AxequalsbSolver({
-                "image": np.lib.pad(x, ((1, 1), (1, 1)), 'constant', constant_values=(0)),
+                "image": x,
                 "kernel": self.k,
                 "weightpen": self.signoise**2,
-                "w": np.lib.pad(w, ((1, 1), (1, 1)), 'constant', constant_values=(0))
+                "w": w
                 }, option = "updatex").solve()
     
         
-        x = x.reshape(self.N1 + 2, self.N2 + 2)[1:-1, 1:-1]
+        x = x.reshape(self.N1e, self.N2e)
         
-        da1 = (1 / self.signoise**2) * Convolution((self.N1, self.N2), self.k ** 2).convolve(np.ones((self.N1, self.N2)))
+        da1 = Convolution((self.N1e, self.N2e), self.k ** 2).convolve(np.ones((self.N1e, self.N2e)))
+        
+        #da1 *= 1 / self.signoise**2 ?????????????
+        #plt.hist(w.flatten(), alpha = 0.5)
+        #plt.hist(da1.flatten(), alpha = 0.5)
+        #plt.show()
+        
         xcov = 1. / (da1 + w)
             
-        return x, xcov.flatten()
+        return x[self.dN1:-self.dN1, self.dN2:-self.dN2], xcov.flatten()
             
     def update_k(self):
         if(self.derivativeSpace):
@@ -158,7 +199,10 @@ class Data:
         
         if(PARAMS["verbose"]):
             print("Updated k ...")
-            print(self.k)
-            if(self.checkk):
-                print("k error         ", np.sum((self.k - self.truek)**2)**0.5)
+            self.print_k()
+        
+    def print_k(self):
+        print(self.k)
+        if(self.checkk):
+            print("k error         ", np.sum((self.k - self.truek)**2)**0.5)
         
