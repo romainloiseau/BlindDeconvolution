@@ -21,7 +21,11 @@ plt.figure(figsize = (8, 8))
 plt.subplot(221)
 plt.imshow(image, cmap = "gray")
 plt.title("Original image")
-blurringkernel = np.array([[.5, .7, .5], [.7, 1., .7], [.5, .7, .5]])
+blurringkernel = np.array([[0., 0., 0., 0., 0.],
+                           [0., 0., 0., 1., 1.],
+                           [0., 0., 1., 0., 0.],
+                           [1., 1., 0., 0., 0.],
+                           [0., 0., 0., 0., 0.]])
 blurringkernel /= np.sum(blurringkernel)
 #image = Kernel(blurringkernel).convolveScipy(image) #Blurring image
 blurredimage = Convolution(image.shape, blurringkernel).convolve(image)

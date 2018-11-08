@@ -56,10 +56,6 @@ class Data:
             
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
-        self.k = np.array([[.5, .7, .5], [.7, 1., .7], [.5, .7, .5]])
-        self.k /= self.k.sum()
-        
-        
         
         #Initialize shapes
         self.N1, self.N2 = self.x.shape[0], self.x.shape[1]
@@ -196,10 +192,13 @@ class Data:
             y = self.y
             c = self.C
         
-        Ak, bk = Kernel(self.k).getAkbk(y, x, c)
-        #A1 = corr.getAutoCor(x, self.k.shape)
-        self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M))
-        self.k /= np.sum(np.abs(self.k))
+        #Ak, bk = Kernel(self.k).getAkbk(y, x, c)
+        Ak, bk = corr.getAkbk(y,
+                              x,
+                              c.reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
+                              self.k.shape)
+        self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M))
+        #self.k /= np.sum(np.abs(self.k))
         
         if(PARAMS["verbose"]):
             print("Updated k ...")

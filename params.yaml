@@ -1,7 +1,7 @@
 freeEnergy:
     eta: !!float 0.01
     Niter: !!int 3
-    M: !!int 3
+    M: !!int 5
     filters: 
         - "dh"
         - "dv"

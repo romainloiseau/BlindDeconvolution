@@ -36,9 +36,9 @@ class AxequalsbSolver:
             raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
             
             
-    def solve(self):
+    def solve(self, init = None):
         if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
-            return self.conjugateGradient()
+            return self.conjugateGradient(init)
         else:
             raise ValueError("No valid algorithm for AxequalsbSolver ... current = " + str(PARAMS["axequalsbSolver"]["algorithm"]) + ". Possible choices: {conjugateGradient}")
     
@@ -58,7 +58,7 @@ class AxequalsbSolver:
         else:
             raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
         
-    def conjugateGradient(self):
+    def conjugateGradient(self, init = None):
         
         def step(k, x, r, p):
             sumr2 = np.sum(r**2)
@@ -71,10 +71,13 @@ class AxequalsbSolver:
             p_ = r_ + beta * p
             return k+1, x_, r_, p_
         
-        if(self.option == "matrix"):
-            x = np.random.random(len(self.b))
-        elif(self.option == "updatex"):
-            x = self.image.copy().flatten()
+        if(init is None):
+            if(self.option == "matrix"):
+                x = np.random.random(len(self.b))
+            elif(self.option == "updatex"):
+                x = self.image.copy().flatten()
+        else:
+            x = init.copy().flatten()
             
         r = self.b - self.multiplyA(x)
         self.error = np.sum(r**2)**0.5
