@@ -10,7 +10,6 @@ import numpy as np
 import opencv_utils as mycv2
 import cv2
 import matplotlib.pyplot as plt
-from freeEnergy import FreeEnergy
 from data import Data
 from convolution import Convolution
 

@@ -7,7 +7,6 @@ Created on Sat Nov  3 17:46:27 2018
 
 import numpy as np
 from convolution import Convolution
-from kernel import Kernel
 import correlation as corr
 from axequalsbSolver import AxequalsbSolver
 import matplotlib.pyplot as plt
@@ -56,13 +55,14 @@ class Data:
             
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
+        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
+        self.k /= np.sum(self.k)
         
         #Initialize shapes
         self.N1, self.N2 = self.x.shape[0], self.x.shape[1]
         self.dN1, self.dN2 = int(self.M / 2.), int(self.M / 2.)
         self.N1e, self.N2e = self.N1 + 2 * self.dN1, self.N2 + 2 * self.dN2
         self.N, self.Ne = self.N1 * self.N2, self.N1e * self.N2e
-        
         
         #Noise
         self.signoise = PARAMS["freeEnergy"]["eta"]
@@ -94,8 +94,8 @@ class Data:
             self.computeIteration()
             
     def computeIteration(self):
-        self.update_x()
         self.update_k()
+        self.update_x()
         
     def update_x(self):
         if(self.derivativeSpace):
@@ -149,8 +149,6 @@ class Data:
         
         E = x.flatten()**2 + c
         
-        print(np.mean(E), np.mean(x.flatten()**2), np.mean(c))
-        
         logq = np.zeros((self.J, self.Ne))
         
         for i in range(self.J):
@@ -163,6 +161,7 @@ class Data:
         q /= np.sum(q, axis = 0)
         
         w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1e, self.N2e)
+        print(np.mean(x), np.mean(w))
         
         x = AxequalsbSolver({
                 "image": x,
@@ -176,7 +175,7 @@ class Data:
         
         convk = Convolution((self.N1e, self.N2e), self.k)
         da1 = convk.convolve(convk.convolve(np.ones((self.N1e, self.N2e))), mode = "adjoint")
-        #da1 *= 1 / self.signoise**2
+        da1 *= 1 / self.signoise**2
         
         xcov = 1. / (da1 + w)
             
@@ -184,21 +183,20 @@ class Data:
     
     def update_k(self):
         if(self.derivativeSpace):
-            x = self.dx[0]
-            y = self.dy[0]
-            c = self.C[0]
+            for i in range(self.nfilters):
+                Ak, bk = corr.getAkbk(self.dy[i],
+                                      self.dx[i],
+                                      self.C[i].reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
+                                      self.k.shape)
+                self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()
         else:
-            x = self.x
-            y = self.y
-            c = self.C
-        
-        #Ak, bk = Kernel(self.k).getAkbk(y, x, c)
-        Ak, bk = corr.getAkbk(y,
-                              x,
-                              c.reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
-                              self.k.shape)
-        self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M))
-        #self.k /= np.sum(np.abs(self.k))
+            #Ak, bk = Kernel(self.k).getAkbk(y, x, c)
+            Ak, bk = corr.getAkbk(self.y,
+                                  self.x,
+                                  self.C.reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
+                                  self.k.shape)
+            self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()
+            #self.k /= np.sum(np.abs(self.k))
         
         if(PARAMS["verbose"]):
             print("Updated k ...")

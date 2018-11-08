@@ -8,7 +8,6 @@ Created on Fri Oct 19 11:47:50 2018
 import numpy as np
 import time as time
 from convolution import Convolution
-from kernel import Kernel
 from scipy.fftpack import fft2, ifft2
 import yaml
 
