@@ -16,12 +16,13 @@ from convolution import Convolution
 
 PARAMS = yaml.load(open("params.yaml"))
 
-image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (300, 300))
+image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (128, 128))
 plt.figure(figsize = (8, 8))
 plt.subplot(221)
 plt.imshow(image, cmap = "gray")
 plt.title("Original image")
-blurringkernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]) / 9
+blurringkernel = np.array([[.5, .7, .5], [.7, 1., .7], [.5, .7, .5]])
+blurringkernel /= np.sum(blurringkernel)
 #image = Kernel(blurringkernel).convolveScipy(image) #Blurring image
 blurredimage = Convolution(image.shape, blurringkernel).convolve(image)
 plt.subplot(222)
@@ -39,5 +40,5 @@ plt.title("Blurred derivative, " + [k for k in PARAMS["derivativefilters"]][0])
 plt.imshow(derivatives[0], cmap = "gray")
 plt.show()
 
-data = Data(blurredimage, derivativeSpace = False, truek = blurringkernel, truex = image)
+data = Data(blurredimage, derivativeSpace = True, truek = blurringkernel, truex = image)
 data.deconv()

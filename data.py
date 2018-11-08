@@ -8,6 +8,7 @@ Created on Sat Nov  3 17:46:27 2018
 import numpy as np
 from convolution import Convolution
 from kernel import Kernel
+import correlation as corr
 from axequalsbSolver import AxequalsbSolver
 import matplotlib.pyplot as plt
 import yaml
@@ -55,7 +56,10 @@ class Data:
             
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
+        self.k = np.array([[.5, .7, .5], [.7, 1., .7], [.5, .7, .5]])
         self.k /= self.k.sum()
+        
+        
         
         #Initialize shapes
         self.N1, self.N2 = self.x.shape[0], self.x.shape[1]
@@ -112,6 +116,7 @@ class Data:
         if(self.derivativeSpace):
             plt.figure(figsize = (15, 3 * self.nfilters))
             for i in range(self.nfilters):
+                print("np.min(self.dx[i]), np.max(self.dx[i])", np.min(self.dx[i]), np.max(self.dx[i]))
                 plt.subplot(100 * self.nfilters + 31 + 3 * i)
                 plt.imshow(self.dx[i], cmap = "gray")
                 if(self.checkx):
@@ -126,6 +131,7 @@ class Data:
                 plt.title("self.C[i]")
             plt.show()
         else:
+            print("np.min(self.x), np.max(self.x)", np.min(self.x), np.max(self.x))
             plt.figure(figsize = (15, 3))
             plt.subplot(131)
             plt.imshow(self.x, cmap = "gray")
@@ -172,17 +178,14 @@ class Data:
         
         x = x.reshape(self.N1e, self.N2e)
         
-        da1 = Convolution((self.N1e, self.N2e), self.k ** 2).convolve(np.ones((self.N1e, self.N2e)))
-        
-        #da1 *= 1 / self.signoise**2 ?????????????
-        #plt.hist(w.flatten(), alpha = 0.5)
-        #plt.hist(da1.flatten(), alpha = 0.5)
-        #plt.show()
+        convk = Convolution((self.N1e, self.N2e), self.k)
+        da1 = convk.convolve(convk.convolve(np.ones((self.N1e, self.N2e))), mode = "adjoint")
+        #da1 *= 1 / self.signoise**2
         
         xcov = 1. / (da1 + w)
             
         return x[self.dN1:-self.dN1, self.dN2:-self.dN2], xcov.flatten()
-            
+    
     def update_k(self):
         if(self.derivativeSpace):
             x = self.dx[0]
@@ -194,6 +197,7 @@ class Data:
             c = self.C
         
         Ak, bk = Kernel(self.k).getAkbk(y, x, c)
+        #A1 = corr.getAutoCor(x, self.k.shape)
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve().reshape((self.M, self.M))
         self.k /= np.sum(np.abs(self.k))
         

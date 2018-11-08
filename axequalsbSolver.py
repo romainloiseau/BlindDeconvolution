@@ -18,7 +18,7 @@ class AxequalsbSolver:
     
     def __init__(self, dico, option = "matrix"):
         self.option = option
-        self.maxite = 10**9
+        self.maxite = 10**6
         if(self.option == "matrix"):
             self.A = dico["A"]
             self.b = dico["b"]
@@ -28,7 +28,7 @@ class AxequalsbSolver:
             self.kernel = dico["kernel"]
             self.weightpen = dico["weightpen"]
             self.w = dico["w"]
-            
+            self.maxite = PARAMS["axequalsbSolver"]["maxite"]
             self.convo = Convolution(self.image.shape, self.kernel)
             self.b = self.convo.convolve(self.image, mode = "adjoint").flatten()
             
@@ -60,7 +60,6 @@ class AxequalsbSolver:
         
     def conjugateGradient(self):
         
-        
         def step(k, x, r, p):
             sumr2 = np.sum(r**2)
             Adotp = self.multiplyA(p)
@@ -69,7 +68,6 @@ class AxequalsbSolver:
             x_ = x + alpha * p
             r_ = r - alpha * Adotp
             beta = np.sum(r_**2) / sumr2
-            #if(beta > 1):print("WARNING, beta > 1 for conjuguate gradient method", sumr2, np.sum(r_**2))
             p_ = r_ + beta * p
             return k+1, x_, r_, p_
         
@@ -79,16 +77,19 @@ class AxequalsbSolver:
             x = self.image.copy().flatten()
             
         r = self.b - self.multiplyA(x)
-        if(PARAMS["verbose"]):print("AxequalsbSolver initial error :", np.sum(r**2))
-        p = r.copy()
-        k = 0
+        self.error = np.sum(r**2)**0.5
+        if(PARAMS["verbose"]):print("AxequalsbSolver initial error :", self.error)
         
-        while(np.sum(r**2) > PARAMS["axequalsbSolver"]["epsilon"]):
-            if(k < self.maxite):
-                k, x, r, p = step(k, x, r, p)
+        p = r.copy()
+        self.ite = 0
+        
+        while(self.error > PARAMS["axequalsbSolver"]["epsilon"]):
+            if(self.ite < self.maxite):
+                self.ite, x, r, p = step(self.ite, x, r, p)
+                self.error = np.sum(r**2)**0.5
             else:
                 break
-        if(PARAMS["verbose"]):print("AxequalsbSolver final error :  ", np.sum(r**2))   
+        if(PARAMS["verbose"]):print("AxequalsbSolver final error :  ", self.error)   
         return x
     
 def runTests():
@@ -129,27 +130,29 @@ def runTests():
     print("INITIAL ERROR :", np.sqrt(np.sum((I - Ik)**2)))
     print()
     
+    #Direct resolution
     bI = np.real(ifft2(fft2(Ik) * np.conjugate(convo.kernelFT).transpose()))
     mu1 = np.real(ifft2(fft2(bI) * convo.kernelFT * np.conjugate(convo.kernelFT).transpose()/ (np.abs(convo.kernelFT * np.conjugate(convo.kernelFT).transpose())**2))).flatten()
     
     print("ERROR - fourier                                     ", np.sqrt(np.sum((I.flatten() - mu1)**2)))
      
-    
+    #Toepliz resolution ... very bad ...
+    """
     Tk = Kernel(k).getToepliz(Ik.shape[0], Ik.shape[1])
     Ak = Tk.transpose().dot(Tk)
     bk = Tk.transpose().dot(Ik.flatten())
     mu2 = AxequalsbSolver({"A": Ak, "b": bk}).solve()
     print("ERROR - conjuguate gradient toepliz                 ", np.sqrt(np.sum((I.flatten() - mu2)**2)))
+    """
     
-    
+    #Conjuguate gradient with overloaded function multiplyA with fourier
     mu3solver = AxequalsbSolver({
             "image": Ik,
             "kernel": k,
             "w": np.zeros(Ik.shape),
             "weightpen" : 0
             }, option = "updatex")
-    
     mu3 = mu3solver.solve()
     
     print("ERROR - conjuguate gradient fourier                 ", np.sqrt(np.sum((I.flatten() - mu3)**2)))
-    print("np.sqrt(np.sum((bI.flatten() - mu3solver.b)**2))    ", np.sqrt(np.sum((bI.flatten() - mu3solver.b)**2)))
+    print("nite", mu3solver.ite)

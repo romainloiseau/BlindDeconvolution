@@ -1,18 +1,18 @@
 freeEnergy:
     eta: !!float 0.01
-    Niter: !!int 2
+    Niter: !!int 3
     M: !!int 3
     filters: 
         - "dh"
         - "dv"
         
-    ivars: [7.0216804986 ,  0.47184142102,   0.04184820868]   #FROM SOURCE CODE
+    ivars: [7021.6804986 ,  471.84142102,   41.84820868]   #FROM SOURCE CODE
     pis: [0.30471011, 0.43436355, 0.26092634]              #FROM SOURCE CODE
 
 axequalsbSolver:
     algorithm: "conjugateGradient"
     epsilon: !!float 0.00000001
-    #maxite: !!int 50000
+    maxite: !!int 200
 
 deconvolution:
     algorithm: "Sobolev"
