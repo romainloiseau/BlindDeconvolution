@@ -184,15 +184,15 @@ class Data:
     def update_k(self):
         if(self.derivativeSpace):
             for i in range(self.nfilters):
-                Ak, bk = corr.getAkbk(self.dy[i],
-                                      self.dx[i],
+                Ak, bk = corr.getAkbk(self.dx[i],
+                                      self.dy[i],
                                       self.C[i].reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
                                       self.k.shape)
                 self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()
         else:
             #Ak, bk = Kernel(self.k).getAkbk(y, x, c)
-            Ak, bk = corr.getAkbk(self.y,
-                                  self.x,
+            Ak, bk = corr.getAkbk(self.x,
+                                  self.y,
                                   self.C.reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
                                   self.k.shape)
             self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()

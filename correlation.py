@@ -6,7 +6,7 @@ Created on Wed Nov  7 14:06:36 2018
 """
 import numpy as np
 
-def getAkbk(y, x, c, kshape):
+def getAkbk(x, y, c, kshape):
     M1, M2 = kshape
     M = M1 * M2
     
