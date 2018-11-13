@@ -55,7 +55,6 @@ class Data:
             
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
-        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
         self.k /= np.sum(self.k)
         
         #Initialize shapes
