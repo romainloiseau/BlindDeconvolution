@@ -43,5 +43,6 @@ plt.title("Blurred derivative, " + [k for k in PARAMS["derivativefilters"]][0])
 plt.imshow(derivatives[0], cmap = "gray")
 plt.show()
 
+#ALGO
 data = Data(blurredimage, derivativeSpace = True, truek = blurringkernel, truex = image)
 data.deconv()
