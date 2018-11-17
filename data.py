@@ -16,35 +16,35 @@ PARAMS = yaml.load(open("params.yaml"))
 
 class Data:
     
-    def __init__(self, y, derivativeSpace = False, truek = np.nan, truex = np.nan):
+    def __init__(self, y, derivativeSpace = False, truek = None, truex = None):
         
         self.y = y.copy() / 256.
         self.x = y.copy() / 256.
         
-        self.checkx = not np.isnan(truex.all())
+        self.checkx = not truex is None
         if(self.checkx):
             if(y.shape != truex.shape):
                 print("WARNING, truex shape different from initial image y shape, setting self.checkx to False")
                 self.checkx = False
-            else:
-                self.truex = truex / 256.
+            else:self.truex = truex / 256.
             
-        self.checkk = not np.isnan(truek.all())
-        if(self.checkk):
-            self.truek = truek
-            
-        self.derivativeSpace = derivativeSpace
+        self.checkk = not truek is None
+        if(self.checkk):self.truek = truek
         
-        if(self.derivativeSpace):
-            self.filters = [PARAMS["derivativefilters"][k] for k in PARAMS["derivativefilters"]]
-            self.nfilters = len(self.filters)
-            convs = [Convolution(y.shape, f) for f in self.filters]
-            self.dy = [conv.convolve(self.y) for conv in convs]
-            self.dx = self.dy.copy()
-            plt.hist(self.dx[0].flatten())
-            plt.show()
-            if(self.checkx):
-                self.truedx = [conv.convolve(self.truex) for conv in convs]
+        self.derivativeSpace = derivativeSpace
+        if(self.derivativeSpace):self.computeInitialDerivatives()
+        
+    def computeInitialDerivatives(self):
+        self.filters = [PARAMS["derivativefilters"][k] for k in PARAMS["derivativefilters"]]
+        self.nfilters = len(self.filters)
+        convs = [Convolution(self.y.shape, f) for f in self.filters]
+        self.filty = [conv.convolve(self.y) for conv in convs]
+        self.filtx = self.filty.copy()
+        
+        plt.hist(self.filtx[0].flatten())
+        plt.show()
+        
+        if(self.checkx):self.truefiltx = [conv.convolve(self.truex) for conv in convs]
     
     def initialize(self):
         #Initialize kernel
@@ -64,7 +64,7 @@ class Data:
         self.N, self.Ne = self.N1 * self.N2, self.N1e * self.N2e
         
         #Noise
-        self.signoise = PARAMS["freeEnergy"]["eta"]
+        self.signoise_v = PARAMS["freeEnergy"]["eta"] * 1.15 ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
         
         #Our prior is a mixture of J gaussian (MOG) with weights pi, mean 0, and standard deviation sigma
         self.pi = np.array(PARAMS["freeEnergy"]["pis"])
@@ -89,7 +89,8 @@ class Data:
             self.print_x()
             self.print_k()
         for i in range(PARAMS["freeEnergy"]["Niter"]):
-            if(PARAMS["verbose"]):print()
+            if(PARAMS["verbose"]):print("Iteration i")
+            self.signoise = self.signoise_v[i]
             self.computeIteration()
             
     def computeIteration(self):
@@ -99,7 +100,7 @@ class Data:
     def update_x(self):
         if(self.derivativeSpace):
             for i in range(self.nfilters):
-                self.dx[i], self.C[i] = self.update_specx(self.dx[i], self.C[i])
+                self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i])
         else:
             self.x, self.C = self.update_specx(self.x, self.C)
         
@@ -111,16 +112,16 @@ class Data:
         if(self.derivativeSpace):
             plt.figure(figsize = (15, 3 * self.nfilters))
             for i in range(self.nfilters):
-                print("np.min(self.dx[i]), np.max(self.dx[i])", np.min(self.dx[i]), np.max(self.dx[i]))
+                print("np.min(self.filtx[i]), np.max(self.filtx[i])", np.min(self.filtx[i]), np.max(self.filtx[i]))
                 plt.subplot(100 * self.nfilters + 31 + 3 * i)
-                plt.imshow(self.dx[i], cmap = "gray")
+                plt.imshow(self.filtx[i], cmap = "gray")
                 if(self.checkx):
-                    plt.title("x, error " + str(np.sum((self.dx[i] - self.truedx[i])**2)**0.5))
+                    plt.title("x, error " + str(np.sum((self.filtx[i] - self.truefiltx[i])**2)**0.5))
                 else:
                     plt.title("x")
                 plt.subplot(100 * self.nfilters + 32 + 3 * i)
-                plt.hist(self.dx[i].flatten(), bins = 40)
-                plt.title("self.dx[i]")
+                plt.hist(self.filtx[i].flatten(), bins = 40)
+                plt.title("self.filtx[i]")
                 plt.subplot(100 * self.nfilters + 33 + 3 * i)
                 plt.hist(self.C[i], bins = 40)
                 plt.title("self.C[i]")
@@ -183,8 +184,8 @@ class Data:
     def update_k(self):
         if(self.derivativeSpace):
             for i in range(self.nfilters):
-                Ak, bk = corr.getAkbk(self.dx[i],
-                                      self.dy[i],
+                Ak, bk = corr.getAkbk(self.filtx[i],
+                                      self.filty[i],
                                       self.C[i].reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
                                       self.k.shape)
                 self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()
