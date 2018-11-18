@@ -31,29 +31,21 @@ class AxequalsbSolver:
             self.convo = Convolution(self.image.shape, self.kernel)
             self.b = self.convo.convolve(self.image, mode = "adjoint").flatten()
             
-        else:    
-            raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
+        else:raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
             
             
     def solve(self, init = None):
-        if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):
-            return self.conjugateGradient(init)
-        else:
-            raise ValueError("No valid algorithm for AxequalsbSolver ... current = " + str(PARAMS["axequalsbSolver"]["algorithm"]) + ". Possible choices: {conjugateGradient}")
+        if(PARAMS["axequalsbSolver"]["algorithm"] == "conjugateGradient"):return self.conjugateGradient(init)
+        else:raise ValueError("No valid algorithm for AxequalsbSolver ... current = " + str(PARAMS["axequalsbSolver"]["algorithm"]) + ". Possible choices: {conjugateGradient}")
     
     def multiplyA(self, x):
-        if(self.option == "matrix"):
-            return self.A.dot(x)
-        
+        if(self.option == "matrix"):return self.A.dot(x)
         elif(self.option == "updatex"):
-            
             reshapedx = x.reshape(self.image.shape)
-            
-            #withKernel = self.convo.convolve(self.convolution.convolve(reshapedx), mode = "adjoint")
+
             withKernel = np.real(ifft2(fft2(reshapedx) * self.convo.kernelFT * np.conjugate(self.convo.kernelFT).transpose()))
             withGamma = self.weightpen * self.w * reshapedx
             return (withKernel + withGamma).flatten()
-        
         else:
             raise ValueError("No valid option for multiplyA ... current: " + str(self.option) + ". Possible choices: {matrix, updatex}")
         
@@ -97,7 +89,7 @@ class AxequalsbSolver:
 def runTests():
     print("AxequalsbSolver tests")
     
-    A = np.array([[1, 0.1], [0.2, 1]])
+    A = np.array([[1, 0.1], [0.1, 2]])
     b = np.array([2, 3])
     t = time.time()
     x = AxequalsbSolver({"A": A, "b": b}).solve()
@@ -158,3 +150,4 @@ def runTests():
     
     print("ERROR - conjuguate gradient fourier                 ", np.sqrt(np.sum((I.flatten() - mu3)**2)))
     print("nite", mu3solver.ite)
+    

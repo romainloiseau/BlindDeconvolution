@@ -12,11 +12,16 @@ from axequalsbSolver import AxequalsbSolver
 import matplotlib.pyplot as plt
 import yaml
 
+from cvxopt import matrix, solvers
+
+
 PARAMS = yaml.load(open("params.yaml"))
 
 class Data:
     
     def __init__(self, y, derivativeSpace = False, truek = None, truex = None):
+        
+        np.set_printoptions(precision=3)
         
         self.y = y.copy() / 256.
         self.x = y.copy() / 256.
@@ -73,13 +78,12 @@ class Data:
         self.J = len(self.sigma)
         
         #Weights
-        #self.C = np.sum(1 / self.sigma**2) * np.ones(self.Ne)
         self.C = np.zeros(self.Ne)
         if(self.derivativeSpace):
             self.C = [self.C.copy() for i in range(self.nfilters)]
-
+        
         print()
-        print("Expected number of pyramids", max(np.floor(np.log(5/self.M)/np.log(0.5**0.5)), 0))
+        print("Expected number of pyramids", max(int(np.floor(np.log(5/self.M)/np.log(0.5**0.5))), 0))
         print()
             
     def deconv(self):
@@ -89,20 +93,43 @@ class Data:
             self.print_x()
             self.print_k()
         for i in range(PARAMS["freeEnergy"]["Niter"]):
-            if(PARAMS["verbose"]):print("Iteration i")
             self.signoise = self.signoise_v[i]
-            self.computeIteration()
+            self.computeIteration(i)
             
-    def computeIteration(self):
-        self.update_k()
-        self.update_x()
+    def computeIteration(self, iteration):
+        if(PARAMS["verbose"]):
+            print()
+            print("##################" + len(str(iteration)) * "#")
+            print("### Iteration " + str(iteration) + " ###")
+            print("##################" + len(str(iteration)) * "#")
+        self.update_x(iteration)
+        self.update_k(iteration)
+        self.showEvolution()
         
-    def update_x(self):
+    def showEvolution(self):
+        if(self.checkx):
+            plt.figure(figsize = (15, 5))
+            plt.subplot(131)
+            plt.imshow(self.y, cmap = "gray")
+            plt.axis('off')
+            plt.title("y")
+            plt.subplot(132)
+            plt.imshow(self.x, cmap = "gray")
+            plt.axis('off')
+            plt.title("x")
+            plt.subplot(133)
+            plt.imshow(self.truex, cmap = "gray")
+            plt.axis('off')
+            plt.title("true x")
+            plt.show()
+        
+    def update_x(self, iteration):
         if(self.derivativeSpace):
             for i in range(self.nfilters):
-                self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i])
+                self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i], iteration)
+            self.x = Convolution(self.y.shape, self.k).deconvolve(self.y)
         else:
-            self.x, self.C = self.update_specx(self.x, self.C)
+            self.x, self.C = self.update_specx(self.x, self.C, iteration)
         
         if(PARAMS["verbose"]):
             print("Updated x ...")   
@@ -143,25 +170,29 @@ class Data:
             plt.title("self.C")
             plt.show()
                 
-    def update_specx(self, x, c):
-        
+    def update_specx(self, x, c, iteration):
+            
         x = np.lib.pad(x, ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
         
-        E = x.flatten()**2 + c
+        if(iteration == 0):
+            w = np.sum(self.pi / (self.sigma ** 2)) * np.ones((self.N1e, self.N2e))
+            
+        else:
+            
+            E = x.flatten()**2 + c
+            
+            logq = np.zeros((self.J, self.Ne))
+            
+            for i in range(self.J):
+                sigma_i = self.sigma[i]
+                pi_i = self.pi[i]
+                logq_i = - 0.5 * E / sigma_i**2 + np.ones(self.Ne) * (np.log(pi_i) - np.log(sigma_i))
+                logq[i] = logq_i.copy()
         
-        logq = np.zeros((self.J, self.Ne))
-        
-        for i in range(self.J):
-            sigma_i = self.sigma[i]
-            pi_i = self.pi[i]
-            logq_i = - 0.5 * E / sigma_i**2 + np.ones(self.Ne) * (np.log(pi_i) - np.log(sigma_i))
-            logq[i] = logq_i.copy()
-    
-        q = np.exp(logq - np.max(logq, axis = 0))
-        q /= np.sum(q, axis = 0)
-        
-        w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1e, self.N2e)
-        print(np.mean(x), np.mean(w))
+            q = np.exp(logq - np.max(logq, axis = 0))
+            q /= np.sum(q, axis = 0)
+            
+            w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1e, self.N2e)
         
         x = AxequalsbSolver({
                 "image": x,
@@ -174,30 +205,41 @@ class Data:
         x = x.reshape(self.N1e, self.N2e)
         
         convk = Convolution((self.N1e, self.N2e), self.k)
-        da1 = convk.convolve(convk.convolve(np.ones((self.N1e, self.N2e))), mode = "adjoint")
-        da1 *= 1 / self.signoise**2
+        padedOnes = np.lib.pad(np.ones((self.N1, self.N2)), ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
+        da1 = convk.convolve(convk.convolve(padedOnes), mode = "adjoint") / self.signoise**2
         
+        print(np.min(da1), np.max(da1), np.min(w), np.max(w))
         xcov = 1. / (da1 + w)
             
         return x[self.dN1:-self.dN1, self.dN2:-self.dN2], xcov.flatten()
     
-    def update_k(self):
+    def update_k(self, iteration):
+        
         if(self.derivativeSpace):
+            Ak = np.zeros((self.M**2, self.M**2))
+            bk = np.zeros(self.M**2)
             for i in range(self.nfilters):
-                Ak, bk = corr.getAkbk(self.filtx[i],
+                tmpAk, tmpbk = corr.getAkbk(self.filtx[i],
                                       self.filty[i],
                                       self.C[i].reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
                                       self.k.shape)
-                self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()
+                Ak += tmpAk
+                bk += tmpbk
+            
         else:
-            #Ak, bk = Kernel(self.k).getAkbk(y, x, c)
             Ak, bk = corr.getAkbk(self.x,
                                   self.y,
                                   self.C.reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
                                   self.k.shape)
-            self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(self.k).reshape((self.M, self.M)).copy()
-            #self.k /= np.sum(np.abs(self.k))
-        
+            
+        Ak = .5 * (Ak + Ak.transpose())
+        self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
+        self.k /= np.sum(np.abs(self.k))
+        for i in range(5):
+            print("SOLVEk")
+            w = (np.maximum(np.abs(self.k), 0.0001) ** (.5-2)).flatten()
+            self.k = AxequalsbSolver({"A": Ak + 0.01 * np.diag(w), "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
+            self.k /= np.sum(np.abs(self.k))
         if(PARAMS["verbose"]):
             print("Updated k ...")
             self.print_k()

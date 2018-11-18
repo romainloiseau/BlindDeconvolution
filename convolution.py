@@ -43,22 +43,15 @@ class Convolution:
         return np.real(fft2(self.kernel))
         
     def convolve(self, image, mode = "direct"):
-        if(image.shape != self.inputShape):
-            raise ValueError("The convolution (shape = " + str(self.inputShape) + ") is not meant to be used with this image shape (" + str(image.shape) + ")")
-        if(mode == "direct"):
-            return np.real(ifft2(fft2(image) * self.kernelFT))
-        elif(mode == "adjoint"):
-            return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))
-        else:
-            raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
+        if(image.shape != self.inputShape):raise ValueError("The convolution (shape = " + str(self.inputShape) + ") is not meant to be used with this image shape (" + str(image.shape) + ")")
+        if(mode == "direct"):return np.real(ifft2(fft2(image) * self.kernelFT))
+        elif(mode == "adjoint"):return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))
+        else:raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
     
     def deconvolve(self, image):
-        if(PARAMS["deconvolution"]["algorithm"] == "L2"):
-            return self.l2(image)
-        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):
-            return self.sobolev(image)
-        else:
-            raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
+        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image)
+        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image)
+        else:raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
     
     def l2(self, image):
         return np.real(ifft2(fft2(image) * self.kernelFT / (abs(self.kernelFT)**2 + PARAMS["deconvolution"]["l2"]["lambda"])))

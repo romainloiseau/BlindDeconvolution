@@ -20,7 +20,7 @@ def getAkbk(x, y, c, kshape):
             aki1i2 = 0
             for px in range(x.shape[0]):
                 for py in range(x.shape[1]):
-                    try:aki1i2 += y[px + i1x, py + i1y] * y[px + i2x, py + i2y]
+                    try:aki1i2 += x[px + i1x, py + i1y] * y[px + i2x, py + i2y]
                     except:pass
                     if(i1x == i2x and i1y == i2y):
                         try:aki1i2 += c[px + i1x, py + i1y]
@@ -32,7 +32,7 @@ def getAkbk(x, y, c, kshape):
         bki1 = 0
         for px in range(x.shape[0]):
             for py in range(x.shape[1]):
-                try:bki1 += y[px + i1x, py + i1y] * x[px, py]
+                try:bki1 += x[px + i1x, py + i1y] * x[px, py]
                 except:pass
         bk[i1] += bki1.copy()
                 
