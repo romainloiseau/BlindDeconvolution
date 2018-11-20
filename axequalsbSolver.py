@@ -8,6 +8,7 @@ Created on Fri Oct 19 11:47:50 2018
 import numpy as np
 import time as time
 from convolution import Convolution
+import matplotlib.pyplot as plt
 from scipy.fftpack import fft2, ifft2
 import yaml
 
@@ -25,6 +26,18 @@ class AxequalsbSolver:
         elif(self.option == "updatex"):
             self.image = dico["image"]
             self.kernel = dico["kernel"]
+            
+            self.mask = np.ones(self.image.shape)
+            self.mask[:int(self.kernel.shape[0] / 2.), :] = 0
+            self.mask[-int(self.kernel.shape[0] / 2.):, :] = 0
+            self.mask[:, :int(self.kernel.shape[0] / 2.)] = 0
+            self.mask[:, -int(self.kernel.shape[0] / 2.):] = 0
+            """
+            print(self.mask[:int(self.kernel.shape[0] / 2.), :].shape)
+            print(self.mask[-int(self.kernel.shape[0] / 2.):, :].shape)
+            plt.imshow(self.mask)
+            plt.show()
+            """
             self.weightpen = dico["weightpen"]
             self.w = dico["w"]
             self.maxite = PARAMS["axequalsbSolver"]["maxite"]
@@ -42,8 +55,10 @@ class AxequalsbSolver:
         if(self.option == "matrix"):return self.A.dot(x)
         elif(self.option == "updatex"):
             reshapedx = x.reshape(self.image.shape)
-
-            withKernel = np.real(ifft2(fft2(reshapedx) * self.convo.kernelFT * np.conjugate(self.convo.kernelFT).transpose()))
+            
+            withKernel = self.convo.convolve(self.convo.convolve(reshapedx, mode = "adjoint") * self.mask)
+            #withKernel = np.real(ifft2(fft2(reshapedx) * self.convo.kernelFT * np.conjugate(self.convo.kernelFT).transpose()))
+            
             withGamma = self.weightpen * self.w * reshapedx
             return (withKernel + withGamma).flatten()
         else:
@@ -54,7 +69,6 @@ class AxequalsbSolver:
         def step(k, x, r, p):
             sumr2 = np.sum(r**2)
             Adotp = self.multiplyA(p)
-            
             alpha = sumr2 / np.sum(p * Adotp)
             x_ = x + alpha * p
             r_ = r - alpha * Adotp

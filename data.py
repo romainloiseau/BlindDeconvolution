@@ -143,15 +143,19 @@ class Data:
                 plt.subplot(100 * self.nfilters + 31 + 3 * i)
                 plt.imshow(self.filtx[i], cmap = "gray")
                 if(self.checkx):
-                    plt.title("x, error " + str(np.sum((self.filtx[i] - self.truefiltx[i])**2)**0.5))
+                    plt.title("x, error " + str(format(np.sum((self.filtx[i] - self.truefiltx[i])**2)**0.5, '.3f')))
                 else:
                     plt.title("x")
                 plt.subplot(100 * self.nfilters + 32 + 3 * i)
                 plt.hist(self.filtx[i].flatten(), bins = 40)
-                plt.title("self.filtx[i]")
+                plt.title("self.filtx[i] " +
+                          str(format(np.min(self.filtx[i]), '.3f')) + " " +
+                          str(format(np.max(self.filtx[i]), '.3f')))
                 plt.subplot(100 * self.nfilters + 33 + 3 * i)
                 plt.hist(self.C[i], bins = 40)
-                plt.title("self.C[i]")
+                plt.title("self.C[i] " +
+                          str(format(np.min(self.C[i]), '.4f')) + " " +
+                          str(format(np.max(self.C[i]), '.4f')))
             plt.show()
         else:
             print("np.min(self.x), np.max(self.x)", np.min(self.x), np.max(self.x))
@@ -159,7 +163,7 @@ class Data:
             plt.subplot(131)
             plt.imshow(self.x, cmap = "gray")
             if(self.checkx):
-                plt.title("x, error " + str(np.sum((self.x - self.truex)**2)**0.5))
+                plt.title("x, error " + str(format(np.sum((self.x - self.truex)**2)**0.5, '.3f')))
             else:
                 plt.title("x")
             plt.subplot(132)
@@ -235,7 +239,7 @@ class Data:
         Ak = .5 * (Ak + Ak.transpose())
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
         self.k /= np.sum(np.abs(self.k))
-        for i in range(5):
+        for i in range(3):
             print("SOLVEk")
             w = (np.maximum(np.abs(self.k), 0.0001) ** (.5-2)).flatten()
             self.k = AxequalsbSolver({"A": Ak + 0.01 * np.diag(w), "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()

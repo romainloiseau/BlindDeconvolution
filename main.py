@@ -15,7 +15,7 @@ from convolution import Convolution
 
 PARAMS = yaml.load(open("params.yaml"))
 
-image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (64, 64))
+image = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (256, 256))
 plt.figure(figsize = (8, 8))
 plt.subplot(221)
 plt.imshow(image, cmap = "gray")
