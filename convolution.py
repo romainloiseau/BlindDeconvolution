@@ -26,8 +26,10 @@ class Convolution:
     
     def __init__(self, inputShape, kernel):
         #self.image = image.astype(np.float)
-        self.inputShape = inputShape
+        
         self.kernel = np.array(kernel).astype(np.float)
+        self.ksz1, self.ksz2 = self.kernel.shape
+        self.inputShape = (inputShape[0] + 2 * self.ksz1, inputShape[1] + 2 * self.ksz2)
         self.kernelFT = self.computeKernelFT()
         
     def computeKernelFT(self):
@@ -40,17 +42,19 @@ class Convolution:
                 
                 self.kernel = k
         
-        return np.real(fft2(self.kernel))
+        return fft2(self.kernel)
         
     def convolve(self, image, mode = "direct"):
+        image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
         if(image.shape != self.inputShape):raise ValueError("The convolution (shape = " + str(self.inputShape) + ") is not meant to be used with this image shape (" + str(image.shape) + ")")
-        if(mode == "direct"):return np.real(ifft2(fft2(image) * self.kernelFT))
-        elif(mode == "adjoint"):return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))
+        if(mode == "direct"):return np.real(ifft2(fft2(image) * self.kernelFT))[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        elif(mode == "adjoint"):return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
         else:raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
     
     def deconvolve(self, image):
-        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image)
-        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image)
+        image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
+        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image)[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image)[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
         else:raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
     
     def l2(self, image):

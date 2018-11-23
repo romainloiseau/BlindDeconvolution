@@ -126,10 +126,16 @@ class Data:
     def update_x(self, iteration):
         if(self.derivativeSpace):
             for i in range(self.nfilters):
-                self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i], iteration)
+                if(PARAMS["freeEnergy"]["use_prev_x"]):
+                    self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i], iteration)
+                else:
+                    self.filtx[i], self.C[i] = self.update_specx(self.filty[i], self.C[i], iteration)
             self.x = Convolution(self.y.shape, self.k).deconvolve(self.y)
         else:
-            self.x, self.C = self.update_specx(self.x, self.C, iteration)
+            if(PARAMS["freeEnergy"]["use_prev_x"]):
+                self.x, self.C = self.update_specx(self.x, self.C, iteration)
+            else:
+                self.x, self.C = self.update_specx(self.y, self.C, iteration)
         
         if(PARAMS["verbose"]):
             print("Updated x ...")   

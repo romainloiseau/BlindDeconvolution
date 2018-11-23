@@ -6,6 +6,8 @@ freeEnergy:
         - "dh"
         - "dv"
         
+    use_prev_x: False
+        
     ivars: [7021.6804986 ,  471.84142102,   41.84820868]   #FROM SOURCE CODE
     pis: [0.30471011, 0.43436355, 0.26092634]              #FROM SOURCE CODE
 
