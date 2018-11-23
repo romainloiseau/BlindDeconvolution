@@ -60,6 +60,7 @@ class Data:
             
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
+        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
         self.k /= np.sum(self.k)
         
         #Initialize shapes
@@ -136,7 +137,7 @@ class Data:
                 self.x, self.C = self.update_specx(self.x, self.C, iteration)
             else:
                 self.x, self.C = self.update_specx(self.y, self.C, iteration)
-        
+                
         if(PARAMS["verbose"]):
             print("Updated x ...")   
             self.print_x()
@@ -216,7 +217,7 @@ class Data:
         
         convk = Convolution((self.N1e, self.N2e), self.k)
         padedOnes = np.lib.pad(np.ones((self.N1, self.N2)), ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
-        da1 = convk.convolve(convk.convolve(padedOnes), mode = "adjoint") / self.signoise**2
+        da1 = 1. / (convk.convolve(convk.convolve(padedOnes), mode = "adjoint") * self.signoise**2)
         
         print(np.min(da1), np.max(da1), np.min(w), np.max(w))
         xcov = 1. / (da1 + w)

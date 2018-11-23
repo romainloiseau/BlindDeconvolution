@@ -14,7 +14,7 @@ freeEnergy:
 axequalsbSolver:
     algorithm: "conjugateGradient"
     epsilon: !!float 0.00000001
-    maxite: !!int 2000
+    maxite: !!int 20000
 
 deconvolution:
     algorithm: "Sobolev"
