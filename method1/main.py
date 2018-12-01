@@ -25,6 +25,7 @@ blurringkernel = np.array([[0., 0., 0., 0., 0.],
                            [0., 0., 1., 0., 0.],
                            [1., 1., 0., 0., 0.],
                            [0., 0., 0., 0., 0.]])
+#blurringkernel = np.lib.pad(blurringkernel, ((7, 7), (7, 7)), mode = "constant", constant_values = (0))
 blurringkernel /= np.sum(blurringkernel)
 #image = Kernel(blurringkernel).convolveScipy(image) #Blurring image
 blurredimage = Convolution(image.shape, blurringkernel).convolve(image)

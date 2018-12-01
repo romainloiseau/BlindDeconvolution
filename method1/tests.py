@@ -8,5 +8,5 @@ Created on Fri Nov  2 14:58:26 2018
 from axequalsbSolver import runTests as axequalsbSolver_test
 from convolution import runTests as convolution_test
 
-axequalsbSolver_test()
-#convolution_test()
+#axequalsbSolver_test()
+convolution_test()

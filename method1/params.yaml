@@ -1,6 +1,6 @@
 freeEnergy:
-    eta: !!float 0.01
-    Niter: !!int 2
+    eta: !!float 0.0001
+    Niter: !!int 10
     M: !!int 5
     filters: 
         - "dh"
@@ -8,16 +8,16 @@ freeEnergy:
         
     use_prev_x: False
         
-    ivars: [7021.6804986 ,  471.84142102,   41.84820868]   #FROM SOURCE CODE
-    pis: [0.30471011, 0.43436355, 0.26092634]              #FROM SOURCE CODE
+    ivars: [7021.6804986 ,  471.84142102,   41.84820868, 4., 0.4]   #FROM SOURCE CODE
+    pis: [0.30471011, 0.43436355, 0.26092634, 0.15, 0.1]              #FROM SOURCE CODE
 
 axequalsbSolver:
     algorithm: "conjugateGradient"
     epsilon: !!float 0.00000001
-    maxite: !!int 20000
+    maxite: !!int 2000
 
 deconvolution:
-    algorithm: "Sobolev"
+    algorithm: "L2"
     sobolev:
         lambda: !!float 0.000000005
     l2:
@@ -28,7 +28,7 @@ derivativefilters:
     dv: [[0, 0, 0], [0, -1, 0], [0, 1, 0]]
     
 paths:
-    image: "data/image.jpg"
+    image: "../data/image.jpg"
 
 render:
     maxwidth: !!int 300

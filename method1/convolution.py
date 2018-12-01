@@ -29,32 +29,33 @@ class Convolution:
         
         self.kernel = np.array(kernel).astype(np.float)
         self.ksz1, self.ksz2 = self.kernel.shape
-        self.inputShape = (inputShape[0] + 2 * self.ksz1, inputShape[1] + 2 * self.ksz2)
+        self.inputShape = inputShape
+        #self.inputShape = (inputShape[0] + 2 * self.ksz1, inputShape[1] + 2 * self.ksz2)
         self.kernelFT = self.computeKernelFT()
         
     def computeKernelFT(self):
         if(not self.kernel.shape == self.inputShape):
             if(self.kernel.shape[0] == self.kernel.shape[1]):
                 k = np.zeros(self.inputShape)
-                for i in range(self.kernel.shape[0]):
-                    for j in range(self.kernel.shape[1]):
-                        k[(i - 1) % self.inputShape[0], (j - 1) % self.inputShape[1]] = self.kernel[i, j]
+                for i in range(self.ksz1):
+                    for j in range(self.ksz2):
+                        k[(i - int(self.ksz1 / 2.)) % self.inputShape[0], (j - int(self.ksz2 / 2.)) % self.inputShape[1]] = self.kernel[i, j]
                 
                 self.kernel = k
         
         return fft2(self.kernel)
         
     def convolve(self, image, mode = "direct"):
-        image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
+        #image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
         if(image.shape != self.inputShape):raise ValueError("The convolution (shape = " + str(self.inputShape) + ") is not meant to be used with this image shape (" + str(image.shape) + ")")
-        if(mode == "direct"):return np.real(ifft2(fft2(image) * self.kernelFT))[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
-        elif(mode == "adjoint"):return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        if(mode == "direct"):return np.real(ifft2(fft2(image) * self.kernelFT))#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        elif(mode == "adjoint"):return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
         else:raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
     
     def deconvolve(self, image):
-        image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
-        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image)[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
-        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image)[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        #image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
+        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image)#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image)#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
         else:raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
     
     def l2(self, image):
@@ -77,7 +78,7 @@ def runTests():
     plt.imshow(image, cmap = "gray")
     plt.title("Original image")
 
-    kernel = PARAMS["filters"]["dh"]
+    kernel = PARAMS["derivativefilters"]["dh"]
     
     plt.subplot(234)
     plt.imshow(kernel, cmap = "gray")
