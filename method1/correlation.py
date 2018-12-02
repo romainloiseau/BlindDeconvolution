@@ -31,7 +31,8 @@ def getAkbk(x, y, c, kshape):
                         if(i1x == i2x and i1y == i2y):
                             aki1i2 += c[px + i1x, py + i1y]
             Ak[i1, i2] += aki1i2.copy()
-            Ak[i2, i1] += aki1i2.copy()
+            if(i1 != i2):
+                Ak[i2, i1] += aki1i2.copy()
             
     for i1 in range(M):
         i1x, i1y = i1 // M1, i1 % M1

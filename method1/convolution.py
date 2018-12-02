@@ -42,7 +42,6 @@ class Convolution:
                         k[(i - int(self.ksz1 / 2.)) % self.inputShape[0], (j - int(self.ksz2 / 2.)) % self.inputShape[1]] = self.kernel[i, j]
                 
                 self.kernel = k
-        
         return fft2(self.kernel)
         
     def convolve(self, image, mode = "direct"):
@@ -52,21 +51,27 @@ class Convolution:
         elif(mode == "adjoint"):return np.real(ifft2(fft2(image) * (np.conjugate(self.kernelFT)).transpose()))#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
         else:raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
     
-    def deconvolve(self, image):
+    def deconvolve(self, image, mode = "direct"):
         #image = np.lib.pad(image, ((self.ksz1, self.ksz1), (self.ksz2, self.ksz2)), 'constant', constant_values=(0))
-        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image)#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
-        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image)#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        if(PARAMS["deconvolution"]["algorithm"] == "L2"):return self.l2(image, mode)#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
+        if(PARAMS["deconvolution"]["algorithm"] == "Sobolev"):return self.sobolev(image, mode)#[self.ksz1:-self.ksz1, self.ksz2:-self.ksz2]
         else:raise ValueError("ERROR !! No algorithm ...     Solver : ", PARAMS["deconvolution"]["algorithm"])
     
-    def l2(self, image):
-        return np.real(ifft2(fft2(image) * self.kernelFT / (abs(self.kernelFT)**2 + PARAMS["deconvolution"]["l2"]["lambda"])))
+    def l2(self, image, mode):
+        if(mode == "direct"):kFT = self.kernelFT
+        elif(mode == "adjoint"):kFT = np.conjugate(self.kernelFT).transpose()
+        else:raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
+        return np.real(ifft2(fft2(image) * kFT / (abs(kFT)**2 + PARAMS["deconvolution"]["l2"]["lambda"])))
     
-    def sobolev(self, image):
+    def sobolev(self, image, mode):
+        if(mode == "direct"):kFT = self.kernelFT
+        elif(mode == "adjoint"):kFT = np.conjugate(self.kernelFT).transpose()
+        else:raise ValueError("Mode for convolve must be either 'direct' or 'adjoint'. You call for convolve with mode = " + str(mode))
         n = self.inputShape[0]
         x = np.concatenate( (np.arange(0,n/2), np.arange(-n/2,0)) );
         [Y, X] = np.meshgrid(x, x)
         S = (X**2 + Y**2) * (2/n)**2
-        return np.real(ifft2(fft2(image) * self.kernelFT / (abs(self.kernelFT)**2 + S*PARAMS["deconvolution"]["sobolev"]["lambda"] + 10**(-15))))
+        return np.real(ifft2(fft2(image) * kFT / (abs(kFT)**2 + S*PARAMS["deconvolution"]["sobolev"]["lambda"] + 10**(-15))))
     
 def runTests():
     print("Convolution tests")
@@ -78,7 +83,14 @@ def runTests():
     plt.imshow(image, cmap = "gray")
     plt.title("Original image")
 
-    kernel = PARAMS["derivativefilters"]["dh"]
+    #kernel = PARAMS["derivativefilters"]["dh"]
+    
+    kernel = np.array([[0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.],
+                  [.25, .5, 1., .5, .25],
+                  [0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.]])
+    kernel /= np.sum(kernel)
     
     plt.subplot(234)
     plt.imshow(kernel, cmap = "gray")
@@ -90,7 +102,7 @@ def runTests():
     t2 = time.time()
     
     plt.subplot(235)
-    plt.imshow(convolution.kernelFT, cmap = "gray")
+    plt.imshow(np.array(convolution.kernelFT).astype(np.float), cmap = "gray")
     plt.title("Kernel fourier")
     
     plt.subplot(232)

@@ -10,6 +10,8 @@ import time as time
 from convolution import Convolution
 import matplotlib.pyplot as plt
 from scipy.fftpack import fft2, ifft2
+import opencv_utils as mycv2
+import cv2
 import yaml
 
 PARAMS = yaml.load(open("params.yaml"))
@@ -26,12 +28,6 @@ class AxequalsbSolver:
         elif(self.option == "updatex"):
             self.image = dico["image"]
             self.kernel = dico["kernel"]
-            
-            self.mask = np.ones(self.image.shape)
-            self.mask[:int(self.kernel.shape[0] / 2.), :] = 0
-            self.mask[-int(self.kernel.shape[0] / 2.):, :] = 0
-            self.mask[:, :int(self.kernel.shape[0] / 2.)] = 0
-            self.mask[:, -int(self.kernel.shape[0] / 2.):] = 0
             """
             print(self.mask[:int(self.kernel.shape[0] / 2.), :].shape)
             print(self.mask[-int(self.kernel.shape[0] / 2.):, :].shape)
@@ -56,7 +52,7 @@ class AxequalsbSolver:
         elif(self.option == "updatex"):
             reshapedx = x.reshape(self.image.shape)
             
-            withKernel = self.convo.convolve(self.convo.convolve(reshapedx, mode = "adjoint") * self.mask)
+            withKernel = self.convo.convolve(self.convo.convolve(reshapedx, mode = "adjoint"))
             #withKernel = np.real(ifft2(fft2(reshapedx) * self.convo.kernelFT * np.conjugate(self.convo.kernelFT).transpose()))
             
             withGamma = self.weightpen * self.w * reshapedx
@@ -127,41 +123,61 @@ def runTests():
     print("Solved in", time.time() - t, "secs")
     print()
     
-    PARAMS["verbose"] = False
+    #PARAMS["verbose"] = False
     
-    k = np.random.random((3, 3))
-    I = np.random.random((100, 100))
+    k = np.array([[0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.],
+                  [.25, .5, 1., .5, .25],
+                  [0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.]])
+    k /= np.sum(k)
+    plt.imshow(k, cmap = "gray")
+    plt.show()
+    I = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (256, 256))
+    
+    plt.figure(figsize = (9, 9))
+    plt.subplot(221)
+    plt.imshow(I, cmap = "gray")
+    #plt.hist(I.flatten())
+    plt.title("true")
+    plt.axis("off")
     
     convo = Convolution(I.shape, k)
     Ik = convo.convolve(I)
     
-    print("INITIAL ERROR :", np.sqrt(np.sum((I - Ik)**2)))
-    print()
+    plt.subplot(222)
+    plt.imshow(Ik, cmap = "gray")
+    #plt.hist(Ik.flatten())
+    plt.title("convolved")
+    plt.axis("off")
+    
+    print("INITIAL ERROR :                        ", np.sqrt(np.sum((I - Ik)**2)))
     
     #Direct resolution
-    bI = np.real(ifft2(fft2(Ik) * np.conjugate(convo.kernelFT).transpose()))
-    mu1 = np.real(ifft2(fft2(bI) * convo.kernelFT * np.conjugate(convo.kernelFT).transpose()/ (np.abs(convo.kernelFT * np.conjugate(convo.kernelFT).transpose())**2))).flatten()
+    mu1 = convo.deconvolve(Ik)
+    plt.subplot(223)
+    plt.imshow(mu1, cmap = "gray")
+    #plt.hist(mu1.flatten())
+    plt.title("direct resolution")
+    plt.axis("off")
     
-    print("ERROR - fourier                                     ", np.sqrt(np.sum((I.flatten() - mu1)**2)))
-     
-    #Toepliz resolution ... very bad ...
-    """
-    Tk = Kernel(k).getToepliz(Ik.shape[0], Ik.shape[1])
-    Ak = Tk.transpose().dot(Tk)
-    bk = Tk.transpose().dot(Ik.flatten())
-    mu2 = AxequalsbSolver({"A": Ak, "b": bk}).solve()
-    print("ERROR - conjuguate gradient toepliz                 ", np.sqrt(np.sum((I.flatten() - mu2)**2)))
-    """
+    print("ERROR - fourier                        ", np.sqrt(np.sum((I.flatten() - mu1.flatten())**2)))
     
     #Conjuguate gradient with overloaded function multiplyA with fourier
     mu3solver = AxequalsbSolver({
             "image": Ik,
             "kernel": k,
             "w": np.zeros(Ik.shape),
-            "weightpen" : 0
-            }, option = "updatex")
-    mu3 = mu3solver.solve()
+            "weightpen" : 0.}, option = "updatex")
+    mu3 = mu3solver.solve().reshape(Ik.shape)
     
-    print("ERROR - conjuguate gradient fourier                 ", np.sqrt(np.sum((I.flatten() - mu3)**2)))
+    print("ERROR - conjuguate gradient fourier    ", np.sqrt(np.sum((I.flatten() - mu3.flatten())**2)))
     print("nite", mu3solver.ite)
+    
+    plt.subplot(224)
+    plt.imshow(mu3, cmap = "gray")
+    #plt.hist(mu3.flatten())
+    plt.title("solver")
+    plt.axis("off")
+    plt.show()
     

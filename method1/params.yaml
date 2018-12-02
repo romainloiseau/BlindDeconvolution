@@ -1,7 +1,7 @@
 freeEnergy:
-    eta: !!float 0.1
+    eta: !!float 0.01
     Niter: !!int 10
-    M: !!int 15
+    M: !!int 5
     filters: 
         - "dh"
         - "dv"
@@ -14,7 +14,7 @@ freeEnergy:
 axequalsbSolver:
     algorithm: "conjugateGradient"
     epsilon: !!float 0.00000001
-    maxite: !!int 2000
+    maxite: !!int 200
 
 deconvolution:
     algorithm: "Sobolev"

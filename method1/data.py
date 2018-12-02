@@ -62,7 +62,7 @@ class Data:
             
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
-        #self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
+        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
         self.k /= np.sum(self.k)
         if(self.checkk):self.k_err = []
         
@@ -117,15 +117,15 @@ class Data:
             plt.subplot(141)
             plt.imshow(self.y, cmap = "gray")
             plt.axis('off')
-            plt.title("y")
+            plt.title("y - {:.3f}".format(np.sum((self.y - self.truex)**2)**.5))
             plt.subplot(142)
             plt.imshow(self.x, cmap = "gray")
             plt.axis('off')
-            plt.title("x")
+            plt.title("x - {:.3f}".format(np.sum((self.x - self.truex)**2)**.5))
             plt.subplot(143)
             plt.imshow(self.nonblinddeconvx, cmap = "gray")
             plt.axis('off')
-            plt.title("non blind deconv x")
+            plt.title("non blind deconv x - {:.3f}".format(np.sum((self.nonblinddeconvx - self.truex)**2)**.5))
             plt.subplot(144)
             plt.imshow(self.truex, cmap = "gray")
             plt.axis('off')
@@ -148,7 +148,13 @@ class Data:
                     self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i], iteration)
                 else:
                     self.filtx[i], self.C[i] = self.update_specx(self.filty[i], self.C[i], iteration)
-            self.x = Convolution(self.y.shape, self.k).deconvolve(self.y)
+            
+            self.x = AxequalsbSolver({
+                    "image": self.y,
+                    "kernel": self.k,
+                    "w": np.zeros(self.y.shape),
+                    "weightpen" : 0.}, option = "updatex").solve().reshape(self.y.shape)
+            
         else:
             if(PARAMS["freeEnergy"]["use_prev_x"]):
                 self.x, self.C = self.update_specx(self.x, self.C, iteration)
@@ -223,19 +229,19 @@ class Data:
             w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1e, self.N2e)
         
         x = AxequalsbSolver({
-                "image": x,
+                "image": x[self.dN1:-self.dN1, self.dN2:-self.dN2],
                 "kernel": self.k,
                 "weightpen": self.signoise**2,
-                "w": w
+                "w": w[self.dN1:-self.dN1, self.dN2:-self.dN2]
                 }, option = "updatex").solve()
     
-        x = x.reshape(self.N1e, self.N2e)
+        x = x.reshape(self.N1, self.N2)
         
         print("np.min(da1), np.max(da1)  ", np.min(self.da1), np.max(self.da1))
         print("np.min(w),   np.max(w)    ", np.min(w), np.max(w))
         xcov = 1. / (self.da1 + w)
             
-        return x[self.dN1:-self.dN1, self.dN2:-self.dN2], xcov.flatten()
+        return x, xcov.flatten()
     
     def update_k(self, iteration):
         
@@ -279,7 +285,7 @@ class Data:
         #primalstart[int(self.M / 2.), int(self.M / 2.)] = 1.
         #self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b, primalstart = matrix(primalstart.flatten()))["x"]).reshape((self.M, self.M))
         self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b)["x"]).reshape((self.M, self.M))
-        self.k = self.k
+        self.k = np.abs(self.k)
         """
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
         self.k = np.abs(self.k)
@@ -304,7 +310,7 @@ class Data:
             plt.axis("off")
             plt.title("{:.2f} - {:.2f}".format(np.min(self.k), np.max(self.k)))
             plt.subplot(132)
-            plt.imshow(self.k ** .5, cmap = "gray")
+            plt.imshow(np.abs(self.k) ** .5, cmap = "gray")
             plt.axis("off")
             plt.subplot(133)
             plt.plot(self.k_err)
@@ -317,7 +323,7 @@ class Data:
             plt.axis("off")
             plt.title("{:.2f} - {:.2f}".format(np.min(self.k), np.max(self.k)))
             plt.subplot(122)
-            plt.imshow(self.k ** .5, cmap = "gray")
+            plt.imshow(np.abs(self.k) ** .5, cmap = "gray")
             plt.axis("off")
             plt.show()
             
