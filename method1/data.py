@@ -21,10 +21,10 @@ class Data:
     
     def __init__(self, y, derivativeSpace = False, truek = None, truex = None):
         
-        np.set_printoptions(precision=3)
+        np.set_printoptions(precision=4)
         
-        self.y = y.copy() / 256.
-        self.x = y.copy() / 256.
+        self.y = y.copy() / 255.
+        self.x = y.copy() / 255.
         
         self.checkx = not truex is None
         if(self.checkx):
@@ -34,7 +34,9 @@ class Data:
             else:self.truex = truex / 256.
             
         self.checkk = not truek is None
-        if(self.checkk):self.truek = truek
+        if(self.checkk):
+            self.truek = truek
+            self.nonblinddeconvx = Convolution(self.y.shape, self.truek).deconvolve(self.y)
         
         self.derivativeSpace = derivativeSpace
         if(self.derivativeSpace):self.computeInitialDerivatives()
@@ -94,6 +96,7 @@ class Data:
             print("Initial variables")
             self.print_x()
             self.print_k()
+            self.showEvolution()
         for i in range(PARAMS["freeEnergy"]["Niter"]):
             self.signoise = self.signoise_v[i]
             self.computeIteration(i)
@@ -110,16 +113,20 @@ class Data:
         
     def showEvolution(self):
         if(self.checkx):
-            plt.figure(figsize = (12, 4))
-            plt.subplot(131)
+            plt.figure(figsize = (16, 4))
+            plt.subplot(141)
             plt.imshow(self.y, cmap = "gray")
             plt.axis('off')
             plt.title("y")
-            plt.subplot(132)
+            plt.subplot(142)
             plt.imshow(self.x, cmap = "gray")
             plt.axis('off')
             plt.title("x")
-            plt.subplot(133)
+            plt.subplot(143)
+            plt.imshow(self.nonblinddeconvx, cmap = "gray")
+            plt.axis('off')
+            plt.title("non blind deconv x")
+            plt.subplot(144)
             plt.imshow(self.truex, cmap = "gray")
             plt.axis('off')
             plt.title("true x")
@@ -127,14 +134,13 @@ class Data:
         
     def update_x(self, iteration):
         
-        convk = Convolution((self.N1e, self.N2e), self.k)
-        padedOnes = np.lib.pad(np.ones((self.N1, self.N2)), ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
-        convolved = convk.convolve(convk.convolve(padedOnes), mode = "adjoint")
+        paddedOnes = np.lib.pad(np.ones((self.N1, self.N2)), ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
+        convolved = Convolution((self.N1e, self.N2e), self.k**2).convolve(paddedOnes)
         #plt.imshow(convolved)
         #plt.axis("off")
         #plt.show()
-        self.da1 = convolved / self.signoise**2
-        print("self.signoise**2, np.min(self.da1), np.max(self.da1)", self.signoise**2, np.min(self.da1), np.max(self.da1))
+        self.da1 = 1. / (convolved * self.signoise**2)
+        print("self.signoise**2", self.signoise**2)
         
         if(self.derivativeSpace):
             for i in range(self.nfilters):
@@ -223,10 +229,10 @@ class Data:
                 "w": w
                 }, option = "updatex").solve()
     
-        
         x = x.reshape(self.N1e, self.N2e)
         
-        print("np.min(w), np.max(w)", np.min(w), np.max(w))
+        print("np.min(da1), np.max(da1)  ", np.min(self.da1), np.max(self.da1))
+        print("np.min(w),   np.max(w)    ", np.min(w), np.max(w))
         xcov = 1. / (self.da1 + w)
             
         return x[self.dN1:-self.dN1, self.dN2:-self.dN2], xcov.flatten()
@@ -263,16 +269,17 @@ class Data:
         plt.title("bk")
         plt.show()
         
-        
         Mones = np.ones(self.M**2)
         G = matrix(- np.diag(Mones))
         h = matrix(np.zeros(self.M**2))
         A = matrix(Mones, (1, self.M**2))
         b = matrix(1.0)
         
-        primalstart = np.zeros((self.M, self.M))
-        primalstart[int(self.M / 2.), int(self.M / 2.)] = 1.
-        self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b, primalstart = matrix(primalstart.flatten()))["x"]).reshape((self.M, self.M))
+        #primalstart = np.zeros((self.M, self.M))
+        #primalstart[int(self.M / 2.), int(self.M / 2.)] = 1.
+        #self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b, primalstart = matrix(primalstart.flatten()))["x"]).reshape((self.M, self.M))
+        self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b)["x"]).reshape((self.M, self.M))
+        self.k = self.k
         """
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
         self.k = np.abs(self.k)

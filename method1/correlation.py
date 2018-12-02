@@ -15,11 +15,11 @@ def getAkbk(x, y, c, kshape):
     bk = np.zeros(M)
             
     for i1 in range(M):
-        i1x, i1y = i1 % M1, i1 // M1
+        i1x, i1y = i1 // M1, i1 % M1
         i1x -= int(M1 / 2.)
         i1y -= int(M1 / 2.)
-        for i2 in range(M):
-            i2x, i2y = i2 % M2, i2 // M2
+        for i2 in range(i1, M):
+            i2x, i2y = i2 // M2, i2 % M2
             i2x -= int(M1 / 2.)
             i2y -= int(M1 / 2.)
             aki1i2 = 0
@@ -31,9 +31,10 @@ def getAkbk(x, y, c, kshape):
                         if(i1x == i2x and i1y == i2y):
                             aki1i2 += c[px + i1x, py + i1y]
             Ak[i1, i2] += aki1i2.copy()
-                
+            Ak[i2, i1] += aki1i2.copy()
+            
     for i1 in range(M):
-        i1x, i1y = i1 % M1, i1 // M1
+        i1x, i1y = i1 // M1, i1 % M1
         i1x -= int(M1 / 2.)
         i1y -= int(M1 / 2.)
         bki1 = 0

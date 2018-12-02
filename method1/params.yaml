@@ -1,15 +1,15 @@
 freeEnergy:
-    eta: !!float 0.0001
+    eta: !!float 0.1
     Niter: !!int 10
-    M: !!int 5
+    M: !!int 15
     filters: 
         - "dh"
         - "dv"
         
     use_prev_x: False
         
-    ivars: [7021.6804986 ,  471.84142102,   41.84820868, 4., 0.4]   #FROM SOURCE CODE
-    pis: [0.30471011, 0.43436355, 0.26092634, 0.15, 0.1]              #FROM SOURCE CODE
+    ivars: [70000., 7021.6804986 ,  471.84142102,   41.84820868, 4., 0.4]   #FROM SOURCE CODE
+    pis: [0.1, 0.30471011, 0.43436355, 0.26092634, 0.15, 0.1]              #FROM SOURCE CODE
 
 axequalsbSolver:
     algorithm: "conjugateGradient"
@@ -17,7 +17,7 @@ axequalsbSolver:
     maxite: !!int 2000
 
 deconvolution:
-    algorithm: "L2"
+    algorithm: "Sobolev"
     sobolev:
         lambda: !!float 0.000000005
     l2:
