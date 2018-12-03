@@ -23,8 +23,8 @@ class Data:
         
         np.set_printoptions(precision=4)
         
-        self.y = y.copy() / 255.
-        self.x = y.copy() / 255.
+        self.y = y.copy()
+        self.x = y.copy()
         
         self.checkx = not truex is None
         if(self.checkx):
@@ -139,7 +139,7 @@ class Data:
         #plt.imshow(convolved)
         #plt.axis("off")
         #plt.show()
-        self.da1 = 1. / (convolved * self.signoise**2)
+        self.da1 = convolved / self.signoise**2
         print("self.signoise**2", self.signoise**2)
         
         if(self.derivativeSpace):
@@ -148,12 +148,14 @@ class Data:
                     self.filtx[i], self.C[i] = self.update_specx(self.filtx[i], self.C[i], iteration)
                 else:
                     self.filtx[i], self.C[i] = self.update_specx(self.filty[i], self.C[i], iteration)
-            
+            """
             self.x = AxequalsbSolver({
                     "image": self.y,
                     "kernel": self.k,
                     "w": np.zeros(self.y.shape),
                     "weightpen" : 0.}, option = "updatex").solve().reshape(self.y.shape)
+            """
+            self.x = Convolution(self.y.shape, self.k).deconvolve(self.y)
             
         else:
             if(PARAMS["freeEnergy"]["use_prev_x"]):
@@ -169,7 +171,7 @@ class Data:
         if(self.derivativeSpace):
             plt.figure(figsize = (15, 3 * self.nfilters))
             for i in range(self.nfilters):
-                print("np.min(self.filtx[i]), np.max(self.filtx[i])", np.min(self.filtx[i]), np.max(self.filtx[i]))
+                #print("np.min(self.filtx[i]), np.max(self.filtx[i])", np.min(self.filtx[i]), np.max(self.filtx[i]))
                 plt.subplot(100 * self.nfilters + 31 + 3 * i)
                 plt.imshow(self.filtx[i], cmap = "gray")
                 if(self.checkx):
@@ -188,7 +190,7 @@ class Data:
                           str(format(np.max(self.C[i]), '.4f')))
             plt.show()
         else:
-            print("np.min(self.x), np.max(self.x)", np.min(self.x), np.max(self.x))
+            #print("np.min(self.x), np.max(self.x)", np.min(self.x), np.max(self.x))
             plt.figure(figsize = (15, 3))
             plt.subplot(131)
             plt.imshow(self.x, cmap = "gray")
