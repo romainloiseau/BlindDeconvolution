@@ -59,7 +59,7 @@ class Data:
         if(self.checkk and self.M != self.truek.shape[0]):
             print("WARNING, self.truek shape different from researched kernel shape self.M, setting self.checkk to False")
             self.checkk = False
-            
+        
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
         self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
@@ -117,15 +117,15 @@ class Data:
             plt.subplot(141)
             plt.imshow(self.y, cmap = "gray")
             plt.axis('off')
-            plt.title("y - {:.3f}".format(np.sum((self.y - self.truex)**2)**.5))
+            plt.title("y - {:.3f}".format(np.mean((self.y - self.truex)**2)**.5))
             plt.subplot(142)
             plt.imshow(self.x, cmap = "gray")
             plt.axis('off')
-            plt.title("x - {:.3f}".format(np.sum((self.x - self.truex)**2)**.5))
+            plt.title("x - {:.3f}".format(np.mean((self.x - self.truex)**2)**.5))
             plt.subplot(143)
             plt.imshow(self.nonblinddeconvx, cmap = "gray")
             plt.axis('off')
-            plt.title("non blind deconv x - {:.3f}".format(np.sum((self.nonblinddeconvx - self.truex)**2)**.5))
+            plt.title("non blind deconv x - {:.3f}".format(np.mean((self.nonblinddeconvx - self.truex)**2)**.5))
             plt.subplot(144)
             plt.imshow(self.truex, cmap = "gray")
             plt.axis('off')
@@ -175,7 +175,7 @@ class Data:
                 plt.subplot(100 * self.nfilters + 31 + 3 * i)
                 plt.imshow(self.filtx[i], cmap = "gray")
                 if(self.checkx):
-                    plt.title("x, error " + str(format(np.sum((self.filtx[i] - self.truefiltx[i])**2)**0.5, '.3f')))
+                    plt.title("x, error " + str(format(np.mean((self.filtx[i] - self.truefiltx[i])**2)**0.5, '.3f')))
                 else:
                     plt.title("x")
                 plt.subplot(100 * self.nfilters + 32 + 3 * i)

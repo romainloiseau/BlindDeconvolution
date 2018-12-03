@@ -52,7 +52,7 @@ class AxequalsbSolver:
         elif(self.option == "updatex"):
             reshapedx = x.reshape(self.image.shape)
             
-            withKernel = self.convo.convolve(self.convo.convolve(reshapedx, mode = "adjoint"))
+            withKernel = self.convo.convolve(self.convo.convolve(reshapedx), mode = "adjoint")
             #withKernel = np.real(ifft2(fft2(reshapedx) * self.convo.kernelFT * np.conjugate(self.convo.kernelFT).transpose()))
             
             withGamma = self.weightpen * self.w * reshapedx
@@ -133,7 +133,7 @@ def runTests():
     k /= np.sum(k)
     plt.imshow(k, cmap = "gray")
     plt.show()
-    I = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (256, 256))
+    I = cv2.resize(mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"])), (64, 64))
     
     plt.figure(figsize = (9, 9))
     plt.subplot(221)
