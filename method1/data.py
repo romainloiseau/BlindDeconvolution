@@ -31,10 +31,13 @@ class Data:
             if(y.shape != truex.shape):
                 print("WARNING, truex shape different from initial image y shape, setting self.checkx to False")
                 self.checkx = False
-            else:self.truex = truex / 256.
+            else:
+                self.truex = truex
+                self.x_psnr = []
             
         self.checkk = not truek is None
         if(self.checkk):
+            self.k_err = []
             self.truek = truek
             self.nonblinddeconvx = Convolution(self.y.shape, self.truek).deconvolve(self.y)
         
@@ -44,14 +47,14 @@ class Data:
     def computeInitialDerivatives(self):
         self.filters = [PARAMS["derivativefilters"][k] for k in PARAMS["derivativefilters"]]
         self.nfilters = len(self.filters)
-        convs = [Convolution(self.y.shape, f) for f in self.filters]
-        self.filty = [conv.convolve(self.y) for conv in convs]
+        self.derivative_convs = [Convolution(self.y.shape, f) for f in self.filters]
+        self.filty = [conv.convolve(self.y) for conv in self.derivative_convs]
         self.filtx = self.filty.copy()
         
         plt.hist(self.filtx[0].flatten())
         plt.show()
         
-        if(self.checkx):self.truefiltx = [conv.convolve(self.truex) for conv in convs]
+        if(self.checkx):self.truefiltx = [conv.convolve(self.truex) for conv in self.derivative_convs]
     
     def initialize(self):
         #Initialize kernel
@@ -64,7 +67,6 @@ class Data:
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
         self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
         self.k /= np.sum(self.k)
-        if(self.checkk):self.k_err = []
         
         #Initialize shapes
         self.N1, self.N2 = self.x.shape[0], self.x.shape[1]
@@ -73,7 +75,7 @@ class Data:
         self.N, self.Ne = self.N1 * self.N2, self.N1e * self.N2e
         
         #Noise
-        self.signoise_v = PARAMS["freeEnergy"]["eta"] * 1.15 ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
+        self.signoise_v = PARAMS["freeEnergy"]["eta"] * 1.1 ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
         print(self.signoise_v)
         #Our prior is a mixture of J gaussian (MOG) with weights pi, mean 0, and standard deviation sigma
         self.pi = np.array(PARAMS["freeEnergy"]["pis"])
@@ -100,6 +102,8 @@ class Data:
         for i in range(PARAMS["freeEnergy"]["Niter"]):
             self.signoise = self.signoise_v[i]
             self.computeIteration(i)
+        while(self.k_err[-1] > self.k_err[-2]):
+            self.computeIteration(i)
             
     def computeIteration(self, iteration):
         if(PARAMS["verbose"]):
@@ -113,23 +117,27 @@ class Data:
         
     def showEvolution(self):
         if(self.checkx):
-            plt.figure(figsize = (16, 4))
-            plt.subplot(141)
+            self.x_psnr += [10 * np.log10(1. / np.mean((self.x - self.truex)**2))]
+            plt.figure(figsize = (16, 3))
+            plt.subplot(151)
             plt.imshow(self.y, cmap = "gray")
             plt.axis('off')
-            plt.title("y - {:.3f}".format(np.mean((self.y - self.truex)**2)**.5))
-            plt.subplot(142)
+            plt.title("y - {:.3f}".format(10 * np.log10(1. / np.mean((self.y - self.truex)**2))))
+            plt.subplot(152)
             plt.imshow(self.x, cmap = "gray")
             plt.axis('off')
-            plt.title("x - {:.3f}".format(np.mean((self.x - self.truex)**2)**.5))
-            plt.subplot(143)
+            plt.title("x - {:.3f}".format(self.x_psnr[-1]))
+            plt.subplot(153)
             plt.imshow(self.nonblinddeconvx, cmap = "gray")
             plt.axis('off')
-            plt.title("non blind deconv x - {:.3f}".format(np.mean((self.nonblinddeconvx - self.truex)**2)**.5))
-            plt.subplot(144)
+            plt.title("non blind deconv x - {:.3f}".format(10 * np.log10(1. / np.mean((self.nonblinddeconvx - self.truex)**2))))
+            plt.subplot(154)
             plt.imshow(self.truex, cmap = "gray")
             plt.axis('off')
             plt.title("true x")
+            plt.subplot(155)
+            plt.plot(self.x_psnr)
+            plt.ylabel("pSNR")
             plt.show()
         
     def update_x(self, iteration):
@@ -140,7 +148,6 @@ class Data:
         #plt.axis("off")
         #plt.show()
         self.da1 = convolved / self.signoise**2
-        print("self.signoise**2", self.signoise**2)
         
         if(self.derivativeSpace):
             for i in range(self.nfilters):
@@ -169,21 +176,30 @@ class Data:
           
     def print_x(self):
         if(self.derivativeSpace):
+            results = [conv.deconvolve(filtxi) for conv, filtxi in zip(self.derivative_convs, self.filtx)]
             plt.figure(figsize = (15, 3 * self.nfilters))
             for i in range(self.nfilters):
                 #print("np.min(self.filtx[i]), np.max(self.filtx[i])", np.min(self.filtx[i]), np.max(self.filtx[i]))
-                plt.subplot(100 * self.nfilters + 31 + 3 * i)
+                plt.subplot(100 * self.nfilters + 41 + 4 * i)
                 plt.imshow(self.filtx[i], cmap = "gray")
+                plt.axis("off")
                 if(self.checkx):
-                    plt.title("x, error " + str(format(np.mean((self.filtx[i] - self.truefiltx[i])**2)**0.5, '.3f')))
+                    plt.title("dx, error " + str(format(10 * np.log10(1. / np.mean((self.filtx[i] - self.truefiltx[i])**2)), '.3f')))
+                else:
+                    plt.title("dx")
+                plt.subplot(100 * self.nfilters + 42 + 4 * i)
+                plt.imshow(results[i], cmap = "gray")
+                plt.axis("off")
+                if(self.checkx):
+                    plt.title("x, error " + str(format(10 * np.log10(1. / np.mean((results[i] - self.truex[i])**2)), '.3f')))
                 else:
                     plt.title("x")
-                plt.subplot(100 * self.nfilters + 32 + 3 * i)
+                plt.subplot(100 * self.nfilters + 43 + 4 * i)
                 plt.hist(self.filtx[i].flatten(), bins = 40)
                 plt.title("self.filtx[i] " +
                           str(format(np.min(self.filtx[i]), '.3f')) + " " +
                           str(format(np.max(self.filtx[i]), '.3f')))
-                plt.subplot(100 * self.nfilters + 33 + 3 * i)
+                plt.subplot(100 * self.nfilters + 44 + 4 * i)
                 plt.hist(self.C[i], bins = 40)
                 plt.title("self.C[i] " +
                           str(format(np.min(self.C[i]), '.4f')) + " " +
@@ -195,7 +211,7 @@ class Data:
             plt.subplot(131)
             plt.imshow(self.x, cmap = "gray")
             if(self.checkx):
-                plt.title("x, error " + str(format(np.sum((self.x - self.truex)**2)**0.5, '.3f')))
+                plt.title("x, error " + str(format(10 * np.log10(1. / np.mean((self.x - self.truex)**2)), '.3f')))
             else:
                 plt.title("x")
             plt.subplot(132)
@@ -283,11 +299,20 @@ class Data:
         A = matrix(Mones, (1, self.M**2))
         b = matrix(1.0)
         
-        #primalstart = np.zeros((self.M, self.M))
-        #primalstart[int(self.M / 2.), int(self.M / 2.)] = 1.
-        #self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b, primalstart = matrix(primalstart.flatten()))["x"]).reshape((self.M, self.M))
-        self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b)["x"]).reshape((self.M, self.M))
-        self.k = np.abs(self.k)
+        
+        #self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b)["x"]).reshape((self.M, self.M))
+        self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h)["x"]).reshape((self.M, self.M))
+        
+        
+        """
+        k = np.abs(self.k).flatten()
+        z = np.zeros(len(k))
+        sort = np.argsort(k)[-int(len(k) * .25):]
+        z[sort] = k[sort]
+        z /= np.sum(z)
+        self.k = z.reshape((self.M, self.M)).copy()
+    
+        """
         """
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
         self.k = np.abs(self.k)
@@ -305,19 +330,19 @@ class Data:
         
     def print_k(self):
         if(self.checkk):
-            self.k_err += [np.sum((self.k - self.truek)**2)**0.5]
+            self.k_err += [10 * np.log10(1. / np.mean((self.k - self.truek)**2))]
             plt.figure(figsize = (12, 3))
             plt.subplot(131)
             plt.imshow(self.k, cmap = "gray")
             plt.axis("off")
-            plt.title("{:.2f} - {:.2f}".format(np.min(self.k), np.max(self.k)))
+            plt.title("k - {:.2f}".format(self.k_err[-1]))
             plt.subplot(132)
-            plt.imshow(np.abs(self.k) ** .5, cmap = "gray")
+            plt.imshow(self.truek, cmap = "gray")
             plt.axis("off")
             plt.subplot(133)
             plt.plot(self.k_err)
+            plt.ylabel("pSNR")
             plt.show()
-            print("k error         ", self.k_err[-1])
         else:
             plt.figure(figsize = (6, 3))
             plt.subplot(121)
