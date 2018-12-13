@@ -65,7 +65,6 @@ class Data:
         
         self.k = np.zeros((self.M, self.M))
         self.k[int(self.M / 2.), int(self.M / 2.)] = 1
-        self.k[int(self.M / 2.), int(self.M / 2.) + 1] = 1
         self.k /= np.sum(self.k)
         
         #Initialize shapes
@@ -75,13 +74,13 @@ class Data:
         self.N, self.Ne = self.N1 * self.N2, self.N1e * self.N2e
         
         #Noise
-        self.signoise_v = PARAMS["freeEnergy"]["eta"] * 1.1 ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
+        self.signoise_v = PARAMS["freeEnergy"]["eta"] * 1.01 ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
         print(self.signoise_v)
         #Our prior is a mixture of J gaussian (MOG) with weights pi, mean 0, and standard deviation sigma
         self.pi = np.array(PARAMS["freeEnergy"]["pis"])
         self.pi /= self.pi.sum()
-        self.sigma = 1 / np.array(PARAMS["freeEnergy"]["ivars"])**0.5
-        self.J = len(self.sigma)
+        self.ivars = np.array(PARAMS["freeEnergy"]["ivars"])
+        self.J = len(self.ivars)
         
         #Weights
         self.C = np.zeros(self.Ne)
@@ -143,7 +142,8 @@ class Data:
     def update_x(self, iteration):
         
         paddedOnes = np.lib.pad(np.ones((self.N1, self.N2)), ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
-        convolved = Convolution((self.N1e, self.N2e), self.k**2).convolve(paddedOnes)
+        convk = Convolution((self.N1e, self.N2e), self.k)
+        convolved = convk.convolve(convk.convolve(paddedOnes, mode = "adjoint"))
         #plt.imshow(convolved)
         #plt.axis("off")
         #plt.show()
@@ -176,7 +176,7 @@ class Data:
           
     def print_x(self):
         if(self.derivativeSpace):
-            results = [conv.deconvolve(filtxi) for conv, filtxi in zip(self.derivative_convs, self.filtx)]
+            #results = [conv.deconvolve(filtxi) for conv, filtxi in zip(self.derivative_convs, self.filtx)]
             plt.figure(figsize = (15, 3 * self.nfilters))
             for i in range(self.nfilters):
                 #print("np.min(self.filtx[i]), np.max(self.filtx[i])", np.min(self.filtx[i]), np.max(self.filtx[i]))
@@ -188,12 +188,15 @@ class Data:
                 else:
                     plt.title("dx")
                 plt.subplot(100 * self.nfilters + 42 + 4 * i)
-                plt.imshow(results[i], cmap = "gray")
-                plt.axis("off")
+                plt.imshow(self.C[i].reshape((self.N1e, self.N2e)), cmap = "gray")
+                """
+                plt.imshow(results[i], cmap = "gray")=
                 if(self.checkx):
                     plt.title("x, error " + str(format(10 * np.log10(1. / np.mean((results[i] - self.truex[i])**2)), '.3f')))
                 else:
                     plt.title("x")
+                """
+                plt.axis("off")
                 plt.subplot(100 * self.nfilters + 43 + 4 * i)
                 plt.hist(self.filtx[i].flatten(), bins = 40)
                 plt.title("self.filtx[i] " +
@@ -227,25 +230,49 @@ class Data:
         x = np.lib.pad(x, ((self.dN1, self.dN1), (self.dN2, self.dN2)), 'constant', constant_values=(0))
         
         if(iteration == 0):
-            w = np.sum(self.pi / (self.sigma ** 2)) * np.ones((self.N1e, self.N2e))
+            w = np.sum(self.pi * self.ivars) * np.ones((self.N1e, self.N2e))
             
         else:
             
             E = x.flatten()**2 + c
+            plt.figure(figsize = (15, 5))
+            plt.subplot(141)
+            plt.imshow(E.reshape((self.N1e, self.N2e))[self.dN1:-self.dN1, self.dN2:-self.dN2], cmap = "gray")
+            plt.axis("off")
+            plt.subplot(142)
+            plt.imshow((E - c).reshape((self.N1e, self.N2e))[self.dN1:-self.dN1, self.dN2:-self.dN2], cmap = "gray")
+            plt.axis("off")
+            plt.subplot(143)
+            plt.imshow(c.reshape((self.N1e, self.N2e))[self.dN1:-self.dN1, self.dN2:-self.dN2], cmap = "gray")
+            plt.axis("off")
             
+            logq = np.array([E for j in range(self.J)]).transpose()
+            logq =  - 0.5 * logq * self.ivars + np.ones((self.Ne, self.J)) * (np.log(self.pi) + .5 * np.log(self.ivars))
+            logq_max = np.max(logq, axis = -1)
+            q = np.exp(logq.transpose() - logq_max)
+            q_sum = np.sum(q, axis = 0)
+            q /= q_sum
+            w = np.sum(q.transpose() * self.ivars, axis = -1).reshape(self.N1e, self.N2e)
+            """
             logq = np.zeros((self.J, self.Ne))
             
             for i in range(self.J):
-                sigma_i = self.sigma[i]
+                ivar_i = self.ivars[i]
                 pi_i = self.pi[i]
-                logq_i = - 0.5 * E / sigma_i**2 + np.ones(self.Ne) * (np.log(pi_i) - np.log(sigma_i))
+                logq_i = - 0.5 * E * ivar_i + np.ones(self.Ne) * (np.log(pi_i) + .5 * np.log(ivar_i))
                 logq[i] = logq_i.copy()
         
+            
             q = np.exp(logq - np.max(logq, axis = 0))
             q /= np.sum(q, axis = 0)
             
-            w = (q.transpose() / self.sigma**2).sum(axis = -1).reshape(self.N1e, self.N2e)
-        
+            w = (q.transpose() * self.ivars).sum(axis = -1).reshape(self.N1e, self.N2e)
+            """
+            plt.subplot(144)
+            plt.imshow(w[self.dN1:-self.dN1, self.dN2:-self.dN2], cmap = "gray")
+            plt.axis("off")
+            plt.show()
+            
         x = AxequalsbSolver({
                 "image": x[self.dN1:-self.dN1, self.dN2:-self.dN2],
                 "kernel": self.k,
@@ -255,8 +282,8 @@ class Data:
     
         x = x.reshape(self.N1, self.N2)
         
-        print("np.min(da1), np.max(da1)  ", np.min(self.da1), np.max(self.da1))
-        print("np.min(w),   np.max(w)    ", np.min(w), np.max(w))
+        print("np.min(da1), np.max(da1)  ", np.min(self.da1[self.dN1:-self.dN1, self.dN2:-self.dN2]), np.max(self.da1[self.dN1:-self.dN1, self.dN2:-self.dN2]))
+        print("np.min(w),   np.max(w)    ", np.min(w[self.dN1:-self.dN1, self.dN2:-self.dN2]), np.max(w[self.dN1:-self.dN1, self.dN2:-self.dN2]))
         xcov = 1. / (self.da1 + w)
             
         return x, xcov.flatten()
@@ -269,7 +296,7 @@ class Data:
             for i in range(self.nfilters):
                 tmpAk, tmpbk = corr.getAkbk(self.filtx[i],
                                       self.filty[i],
-                                      self.C[i].reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
+                                      self.C[i].reshape(self.N1e, self.N2e),
                                       self.k.shape)
                 Ak += tmpAk
                 bk += tmpbk
@@ -277,10 +304,10 @@ class Data:
         else:
             Ak, bk = corr.getAkbk(self.x,
                                   self.y,
-                                  self.C.reshape(self.N1e, self.N2e)[self.dN1:-self.dN1, self.dN2:-self.dN2],
+                                  self.C.reshape(self.N1e, self.N2e),
                                   self.k.shape)
             
-        Ak = .5 * (Ak + Ak.transpose())
+        #Ak = .5 * (Ak + Ak.transpose())
         
         plt.figure(figsize = (6, 3))
         plt.subplot(121)
@@ -299,10 +326,8 @@ class Data:
         A = matrix(Mones, (1, self.M**2))
         b = matrix(1.0)
         
-        
-        #self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b)["x"]).reshape((self.M, self.M))
-        self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h)["x"]).reshape((self.M, self.M))
-        
+        self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h, A, b)["x"]).reshape((self.M, self.M))
+        #self.k = np.array(solvers.qp(matrix(Ak), matrix(-bk), G, h)["x"]).reshape((self.M, self.M))
         
         """
         k = np.abs(self.k).flatten()
@@ -311,7 +336,6 @@ class Data:
         z[sort] = k[sort]
         z /= np.sum(z)
         self.k = z.reshape((self.M, self.M)).copy()
-    
         """
         """
         self.k = AxequalsbSolver({"A": Ak, "b": bk}).solve(np.zeros(self.k.shape)).reshape((self.M, self.M)).copy()
@@ -331,17 +355,20 @@ class Data:
     def print_k(self):
         if(self.checkk):
             self.k_err += [10 * np.log10(1. / np.mean((self.k - self.truek)**2))]
-            plt.figure(figsize = (12, 3))
-            plt.subplot(131)
+            plt.figure(figsize = (15, 3))
+            plt.subplot(141)
             plt.imshow(self.k, cmap = "gray")
             plt.axis("off")
             plt.title("k - {:.2f}".format(self.k_err[-1]))
-            plt.subplot(132)
+            plt.subplot(142)
             plt.imshow(self.truek, cmap = "gray")
             plt.axis("off")
-            plt.subplot(133)
+            plt.subplot(143)
             plt.plot(self.k_err)
             plt.ylabel("pSNR")
+            plt.subplot(144)
+            plt.plot(self.signoise_v[:len(self.k_err)])
+            plt.ylabel("noise")
             plt.show()
         else:
             plt.figure(figsize = (6, 3))

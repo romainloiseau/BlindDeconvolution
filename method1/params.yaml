@@ -1,5 +1,5 @@
 freeEnergy:
-    eta: !!float 0.01
+    eta: !!float 0.05
     Niter: !!int 10
     M: !!int 5
     filters: 
@@ -8,8 +8,8 @@ freeEnergy:
         
     use_prev_x: False
         
-    ivars: [70000., 7021.6804986 ,  471.84142102,   41.84820868, 4., 0.4]   #FROM SOURCE CODE
-    pis: [0.1, 0.30471011, 0.43436355, 0.26092634, 0.15, 0.1]              #FROM SOURCE CODE
+    ivars: [7021.6804986 ,  471.84142102,   41.84820868]   #FROM SOURCE CODE
+    pis: [0.30471011, 0.43436355, 0.26092634]              #FROM SOURCE CODE
 
 axequalsbSolver:
     algorithm: "conjugateGradient"
@@ -28,7 +28,7 @@ derivativefilters:
     dv: [[0, 0, 0], [0, -1, 0], [0, 1, 0]]
     
 paths:
-    image: "../data/image.jpg"
+    image: "../data/image_1.jpg"
 
 render:
     maxwidth: !!int 300

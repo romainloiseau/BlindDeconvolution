@@ -74,6 +74,26 @@ class Convolution:
         return np.real(ifft2(fft2(image) * kFT / (abs(kFT)**2 + S*PARAMS["deconvolution"]["sobolev"]["lambda"] + 10**(-15))))
     
 def runTests():
+    
+    kernel = np.array([[.2, .5, .2], [.5, 1., .5], [.2, .5, .2]])
+    kernel /= np.sum(kernel)
+    convolution = Convolution((10, 10), kernel)
+    
+    plt.figure(figsize = (15, 5))
+    plt.subplot(131)
+    plt.imshow(kernel, norm = None, cmap = "gray")
+    plt.axis("off")
+    plt.title("Original kernel")
+    plt.subplot(132)
+    plt.imshow(convolution.kernel, cmap = "gray")
+    plt.axis("off")
+    plt.title("Resized kernel")
+    plt.subplot(133)
+    plt.imshow(np.abs(convolution.kernelFT).astype(np.float), cmap = "gray")
+    plt.axis("off")
+    plt.title("Kernel Fourier transform")
+    plt.show()
+    
     print("Convolution tests")
     image = mycv2.cvtGray(mycv2.loadImage(PARAMS["paths"]["image"]))
     
@@ -102,7 +122,7 @@ def runTests():
     t2 = time.time()
     
     plt.subplot(235)
-    plt.imshow(np.array(convolution.kernelFT).astype(np.float), cmap = "gray")
+    plt.imshow(np.abs(convolution.kernelFT).astype(np.float), cmap = "gray")
     plt.title("Kernel fourier")
     
     plt.subplot(232)
