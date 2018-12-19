@@ -74,7 +74,8 @@ class Data:
         self.N, self.Ne = self.N1 * self.N2, self.N1e * self.N2e
         
         #Noise
-        self.signoise_v = PARAMS["freeEnergy"]["eta"] * 1.01 ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
+        self.divnoise = 1.01
+        self.signoise_v = PARAMS["freeEnergy"]["eta"] * self.divnoise ** np.arange(PARAMS["freeEnergy"]["Niter"] - 1, -1, -1)
         print(self.signoise_v)
         #Our prior is a mixture of J gaussian (MOG) with weights pi, mean 0, and standard deviation sigma
         self.pi = np.array(PARAMS["freeEnergy"]["pis"])
@@ -101,8 +102,6 @@ class Data:
         for i in range(PARAMS["freeEnergy"]["Niter"]):
             self.signoise = self.signoise_v[i]
             self.computeIteration(i)
-        while(self.k_err[-1] > self.k_err[-2]):
-            self.computeIteration(i)
             
     def computeIteration(self, iteration):
         if(PARAMS["verbose"]):
@@ -117,26 +116,42 @@ class Data:
     def showEvolution(self):
         if(self.checkx):
             self.x_psnr += [10 * np.log10(1. / np.mean((self.x - self.truex)**2))]
-            plt.figure(figsize = (16, 3))
-            plt.subplot(151)
+            plt.figure(figsize = (20, 10))
+            plt.subplot(245)
             plt.imshow(self.y, cmap = "gray")
             plt.axis('off')
-            plt.title("y - {:.3f}".format(10 * np.log10(1. / np.mean((self.y - self.truex)**2))))
-            plt.subplot(152)
+            plt.title("blurred x  -  pSNR = {:.2f}".format(10 * np.log10(1. / np.mean((self.y - self.truex)**2))), fontdict = {'fontsize': 19})
+            plt.subplot(246)
             plt.imshow(self.x, cmap = "gray")
             plt.axis('off')
-            plt.title("x - {:.3f}".format(self.x_psnr[-1]))
-            plt.subplot(153)
+            plt.title("deconv x  -  pSNR = {:.2f}".format(self.x_psnr[-1]), fontdict = {'fontsize': 19})
+            plt.subplot(247)
             plt.imshow(self.nonblinddeconvx, cmap = "gray")
             plt.axis('off')
-            plt.title("non blind deconv x - {:.3f}".format(10 * np.log10(1. / np.mean((self.nonblinddeconvx - self.truex)**2))))
-            plt.subplot(154)
+            plt.title("nonblind x  -  pSNR = {:.2f}".format(10 * np.log10(1. / np.mean((self.nonblinddeconvx - self.truex)**2))), fontdict = {'fontsize': 19})
+            plt.subplot(248)
             plt.imshow(self.truex, cmap = "gray")
             plt.axis('off')
-            plt.title("true x")
-            plt.subplot(155)
+            plt.title("true x", fontdict = {'fontsize': 19})
+            plt.subplot(244)
+            plt.title("x  -  pSNR", fontdict = {'fontsize': 19})
             plt.plot(self.x_psnr)
-            plt.ylabel("pSNR")
+            plt.ylabel("pSNR", fontdict = {'fontsize': 16})
+            plt.xlabel("iteration", fontdict = {'fontsize': 16})
+            plt.subplot(241)
+            plt.imshow(self.k, cmap = "gray")
+            plt.axis("off")
+            plt.title("kernel  -  pSNR = {:.2f}".format(self.k_err[-1]), fontdict = {'fontsize': 19})
+            plt.subplot(242)
+            plt.imshow(self.truek, cmap = "gray")
+            plt.title("true kernel", fontdict = {'fontsize': 19})
+            plt.axis("off")
+            plt.subplot(243)
+            plt.plot(self.k_err)
+            plt.title("kernel  -  pSNR", fontdict = {'fontsize': 19})
+            plt.ylabel("pSNR", fontdict = {'fontsize': 16})
+            plt.xlabel("iterations", fontdict = {'fontsize': 16})
+            plt.tight_layout()
             plt.show()
         
     def update_x(self, iteration):
@@ -355,20 +370,19 @@ class Data:
     def print_k(self):
         if(self.checkk):
             self.k_err += [10 * np.log10(1. / np.mean((self.k - self.truek)**2))]
-            plt.figure(figsize = (15, 3))
-            plt.subplot(141)
+            plt.figure(figsize = (15, 4))
+            plt.subplot(131)
             plt.imshow(self.k, cmap = "gray")
             plt.axis("off")
-            plt.title("k - {:.2f}".format(self.k_err[-1]))
-            plt.subplot(142)
+            plt.title("k  -  pSNR = {:.2f}".format(self.k_err[-1]))
+            plt.subplot(132)
             plt.imshow(self.truek, cmap = "gray")
+            plt.title("true k")
             plt.axis("off")
-            plt.subplot(143)
+            plt.subplot(133)
             plt.plot(self.k_err)
             plt.ylabel("pSNR")
-            plt.subplot(144)
-            plt.plot(self.signoise_v[:len(self.k_err)])
-            plt.ylabel("noise")
+            plt.xlabel("iterations")
             plt.show()
         else:
             plt.figure(figsize = (6, 3))

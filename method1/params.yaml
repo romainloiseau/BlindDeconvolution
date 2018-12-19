@@ -1,6 +1,6 @@
 freeEnergy:
-    eta: !!float 0.05
-    Niter: !!int 10
+    eta: !!float 0.08
+    Niter: !!int 7
     M: !!int 5
     filters: 
         - "dh"
@@ -17,7 +17,7 @@ axequalsbSolver:
     maxite: !!int 20000
 
 deconvolution:
-    algorithm: "Sobolev"
+    algorithm: "L2"
     sobolev:
         lambda: !!float 0.000000005
     l2:
@@ -28,7 +28,7 @@ derivativefilters:
     dv: [[0, 0, 0], [0, -1, 0], [0, 1, 0]]
     
 paths:
-    image: "../data/image_1.jpg"
+    image: "../data/image_5.jpg"
 
 render:
     maxwidth: !!int 300
