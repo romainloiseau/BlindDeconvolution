@@ -17,7 +17,7 @@ from cvxopt import matrix, solvers
 
 PARAMS = yaml.load(open("params.yaml"))
 
-class Data:
+class FreeEnergy:
     
     def __init__(self, y, derivativeSpace = False, truek = None, truex = None):
         

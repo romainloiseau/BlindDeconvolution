@@ -28,7 +28,7 @@ derivativefilters:
     dv: [[0, 0, 0], [0, -1, 0], [0, 1, 0]]
     
 paths:
-    image: "../data/image_5.jpg"
+    image: "data/image_5.jpg"
 
 render:
     maxwidth: !!int 300

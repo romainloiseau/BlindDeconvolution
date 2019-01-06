@@ -10,7 +10,7 @@ import numpy as np
 import opencv_utils as mycv2
 import cv2
 import matplotlib.pyplot as plt
-from data import Data
+from freeEnergy import FreeEnergy
 from convolution import Convolution
 
 PARAMS = yaml.load(open("params.yaml"))
@@ -58,5 +58,5 @@ plt.imshow(derivatives[0], cmap = "gray")
 plt.show()
 
 #ALGO
-data = Data(blurredimage, derivativeSpace = True, truek = blurringkernel, truex = image)
-data.deconv()
+algo = FreeEnergy(blurredimage, derivativeSpace = True, truek = blurringkernel, truex = image)
+algo.deconv()

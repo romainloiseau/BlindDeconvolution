@@ -16,6 +16,7 @@ import yaml
 
 PARAMS = yaml.load(open("params.yaml"))
 
+#Conjuguate gradient algorithm
 class AxequalsbSolver:
     
     def __init__(self, dico, option = "matrix"):

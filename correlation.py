@@ -7,6 +7,8 @@ Created on Wed Nov  7 14:06:36 2018
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+#Computes correlation matrices
 def getAkbk(x, y, c, kshape):
     M1, M2 = kshape
     M = M1 * M2
@@ -15,7 +17,8 @@ def getAkbk(x, y, c, kshape):
     Ak = np.zeros((M, M))
     Ak_c = np.zeros((M, M))
     bk = np.zeros(M)
-            
+    
+    #Auto correlation
     for i1 in range(M):
         i1x, i1y = i1 // M1, i1 % M1
         i1x -= int(M1 / 2.)
